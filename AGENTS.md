@@ -21,9 +21,11 @@ docs/         SPEC.md, DESIGN.md, IDEAS.md, mockups/
 prototype/    Mockup HTML statis (acuan visual, bukan kode produksi)
 ```
 
-Milestone 3 sudah membangun `apps/server` dan `apps/web`: fondasi (M1), alur
-pelanggan lewat QR (M2), serta pembayaran manual, diskon, tutup meja, dan
-ringkasan harian (M3). Tipe kontrak API disimpan lokal di
+Keempat milestone sudah membangun `apps/server` dan `apps/web`: fondasi (M1),
+alur pelanggan lewat QR (M2), pembayaran manual/diskon/tutup meja/ringkasan
+(M3), serta QRIS otomatis dan cadangan (M4). Aset distribusi Windows ada di
+`installer/` dan `scripts/`; `.exe` dibangun oleh workflow release di runner
+Windows, bukan di macOS/Linux. Tipe kontrak API disimpan lokal di
 `apps/web/src/types.ts` agar kedua workspace bisa dibangun tanpa urutan build
 tambahan.
 

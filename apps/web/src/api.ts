@@ -1,7 +1,10 @@
 import type {
   AntreanResponse,
   BayarRequest,
+  CadanganResponse,
+  CekStatusResponse,
   DiskonRequest,
+  EksporRequest,
   HealthResponse,
   InfoMejaResponse,
   KirimPesananRequest,
@@ -16,6 +19,7 @@ import type {
   PatchMenuResponse,
   PengaturanResponse,
   PesananPublik,
+  QrisResponse,
   RingkasanHarian,
   StatusResponse,
   TagihanDetail,
@@ -242,4 +246,84 @@ export function updatePengaturan(
     method: 'PATCH',
     body: JSON.stringify(body),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Milestone 4 — QRIS otomatis dan cadangan
+// ---------------------------------------------------------------------------
+
+export function buatQrisTagihan(id: number): Promise<QrisResponse> {
+  return request<QrisResponse>(`/tagihan/${id}/qris`, { method: 'POST' })
+}
+
+export function buatQrisPelanggan(token: string): Promise<QrisResponse> {
+  return request<QrisResponse>(`/m/${token}/qris`, { method: 'POST' }, false)
+}
+
+export function infoQrisPelanggan(token: string): Promise<QrisResponse> {
+  return request<QrisResponse>(`/m/${token}/qris`, {}, false)
+}
+
+export function cekStatusQris(id: number): Promise<CekStatusResponse> {
+  return request<CekStatusResponse>(`/tagihan/${id}/cek-status`, {
+    method: 'POST',
+  })
+}
+
+export function batalQris(id: number): Promise<TagihanResponse> {
+  return request<TagihanResponse>(`/tagihan/${id}/qris/batal`, {
+    method: 'POST',
+  })
+}
+
+/** Demo: menandai QRIS simulasi sebagai sudah dibayar pelanggan. */
+export function bayarMock(providerRef: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(
+    `/qris/mock/bayar/${encodeURIComponent(providerRef)}`,
+    { method: 'POST' },
+  )
+}
+
+export function daftarCadangan(): Promise<CadanganResponse> {
+  return request<CadanganResponse>('/cadangan')
+}
+
+export function buatCadangan(): Promise<CadanganResponse> {
+  return request<CadanganResponse>('/cadangan/buat', { method: 'POST' })
+}
+
+export function eksporCadangan(
+  path: string,
+): Promise<{ ok: true; path: string }> {
+  const body: EksporRequest = { path }
+  return request<{ ok: true; path: string }>('/cadangan/ekspor', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** Unduh berkas cadangan; berbeda dari request() karena responsnya binary. */
+export async function unduhCadangan(nama: string): Promise<Blob> {
+  const token = getToken()
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+
+  let response: Response
+  try {
+    response = await fetch(
+      `/api/cadangan/${encodeURIComponent(nama)}/unduh`,
+      { headers },
+    )
+  } catch {
+    throw new ApiError(0, 'NetworkError')
+  }
+
+  if (response.status === 401 && token) {
+    clearToken()
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, `HTTP ${response.status}`)
+  }
+  return response.blob()
 }

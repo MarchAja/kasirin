@@ -8,6 +8,7 @@ import {
   type PesananData,
 } from "../domain/pesanan.js";
 import type { OutletPublik } from "../domain/types.js";
+import { infoQris } from "../payment/qris.js";
 import type { Db } from "../db/client.js";
 import { HttpError } from "../http.js";
 
@@ -52,7 +53,7 @@ const kirimSchema = z.object({
     .max(30),
 });
 
-function mejaDariToken(db: Db, token: string): MejaRow {
+export function mejaDariToken(db: Db, token: string): MejaRow {
   if (!TOKEN_RE.test(token)) throw new HttpError(404, "QR meja tidak valid.");
   const meja = db
     .prepare("SELECT id, nomor, token, aktif FROM meja WHERE token = ? AND aktif = 1")
@@ -69,7 +70,7 @@ function dataOutlet(db: Db): OutletPublik {
   return outlet;
 }
 
-function kunjunganTerbuka(db: Db, mejaId: number): KunjunganRow | undefined {
+export function kunjunganTerbuka(db: Db, mejaId: number): KunjunganRow | undefined {
   return db
     .prepare(
       `SELECT id, dibuka_pada FROM kunjungan
@@ -189,6 +190,8 @@ export function registerCustomer(app: FastifyInstance, db: Db): void {
         dibuka_pada: null,
         pesanan: [],
         tagihan: null,
+        mode_bayar: outlet.mode_bayar,
+        qris: null,
       };
     }
 
@@ -206,11 +209,12 @@ export function registerCustomer(app: FastifyInstance, db: Db): void {
     sinkronisasiTagihan(db, kunjungan.id);
     const tagihan = db
       .prepare(
-        `SELECT subtotal, diskon, pajak, service, total, status
+        `SELECT id, subtotal, diskon, pajak, service, total, status
          FROM tagihan WHERE kunjungan_id = ?`,
       )
       .get(kunjungan.id) as
       | {
+          id: number;
           subtotal: number;
           diskon: number;
           pajak: number;
@@ -235,12 +239,30 @@ export function registerCustomer(app: FastifyInstance, db: Db): void {
         total: hitungSubtotal(db, kunjungan.id),
         status: "buka",
       },
+      mode_bayar: outlet.mode_bayar,
+      qris: infoQris(db, tagihan?.id ?? -1),
     };
   });
 
   app.post("/api/m/:token/orders", async (request, reply) => {
     const { token } = request.params as { token: string };
     const meja = mejaDariToken(db, token);
+    const kunjunganSekarang = kunjunganTerbuka(db, meja.id);
+    if (kunjunganSekarang) {
+      const tagihan = db
+        .prepare("SELECT status FROM tagihan WHERE kunjungan_id = ?")
+        .get(kunjunganSekarang.id) as { status: string } | undefined;
+      if (
+        tagihan &&
+        (tagihan.status === "tertunda" || tagihan.status === "perlu_dicek")
+      ) {
+        throw new HttpError(
+          409,
+          "Tagihan terkunci selama pembayaran QRIS tertunda.",
+        );
+      }
+    }
+
     const input = kirimSchema.parse(request.body);
     const tervalidasi = input.items.map((item) => validasiItem(db, item));
 

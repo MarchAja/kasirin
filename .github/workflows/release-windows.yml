@@ -1,0 +1,67 @@
+name: Release Windows
+
+# Bangun paket Windows setiap kali tag v* didorong (mis. v0.1.0).
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Bangun ZIP + installer NSIS
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repositori
+        uses: actions/checkout@v4
+
+      - name: Siapkan Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Build aplikasi
+        run: npm run build
+
+      # Pilihan yang dipakai: choco install nsis -y (bukan binary-builder).
+      - name: Pasang NSIS
+        run: choco install nsis -y
+
+      - name: Bangun paket Windows
+        run: powershell -File scripts/build-windows.ps1
+
+      - name: Unggah artefak
+        uses: actions/upload-artifact@v4
+        with:
+          name: kasirin-windows
+          path: |
+            dist-windows/KasirIn-windows.zip
+            dist-windows/KasirIn-Setup.exe
+          if-no-files-found: warn
+
+      - name: Buat GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-windows/KasirIn-windows.zip
+            dist-windows/KasirIn-Setup.exe
+          generate_release_notes: true
+          body: |
+            Paket KasirIn untuk Windows (${{ github.ref_name }}).
+
+            - `KasirIn-windows.zip` — versi portabel, ekstrak lalu jalankan `run.cmd`.
+            - `KasirIn-Setup.exe` — installer NSIS, tidak perlu hak administrator.
+
+            Butuh Node.js 22 atau lebih baru. Data tersimpan di `%LOCALAPPDATA%\KasirIn\data`.
+            Panduan lengkap: https://github.com/MarchAja/kasirin/blob/main/docs/DEPLOYMENT.md
+
+            Lisensi AGPL-3.0 — https://github.com/MarchAja/kasirin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

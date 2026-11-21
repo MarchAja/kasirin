@@ -6,6 +6,12 @@ import { MIGRATION_ID, SCHEMA_SQL } from "./schema.js";
 const MIGRASI: Array<{ id: string; sql: string }> = [
   { id: MIGRATION_ID, sql: SCHEMA_SQL },
   { id: "002_m3", sql: "ALTER TABLE tagihan ADD COLUMN alasan_diskon TEXT;" },
+  {
+    id: "003_m4",
+    sql: `ALTER TABLE pembayaran ADD COLUMN provider TEXT NOT NULL DEFAULT 'manual';
+          ALTER TABLE pembayaran ADD COLUMN qr_data TEXT;
+          ALTER TABLE pembayaran ADD COLUMN expired_at TEXT;`,
+  },
 ];
 
 function pastikanPinPemilik(db: Db): void {

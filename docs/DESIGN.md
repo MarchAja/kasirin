@@ -205,6 +205,19 @@ Screenshot hasil implementasi Milestone 2:
 
 Screenshot: `docs/mockups/kasir-m3.png`, `ringkasan-m3.png`.
 
+### QRIS otomatis (M4)
+
+- QRIS dirender lokal dari `qr_data` memakai `qrcode`; tidak bergantung layanan
+  QR eksternal.
+- Saat `tertunda`, panel tagihan menampilkan banner kunci dan tombol
+  **Lihat QRIS**; tombol **Cek status pembayaran** selalu tersedia.
+- Provider simulasi dipakai bila `MIDTRANS_SERVER_KEY` kosong, lengkap dengan
+  tombol demo "Simulasikan pembayaran pelanggan".
+- Status `perlu_dicek` memakai pill amber dan tidak pernah ditampilkan sebagai
+  keberhasilan.
+
+Screenshot: `docs/mockups/qris-m4.png`, `cadangan-m4.png`.
+
 ### Halaman status pelanggan (M2)
 
 - Dibuka otomatis saat QR meja dibuka dan kunjungan masih aktif; tombol

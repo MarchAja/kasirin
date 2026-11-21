@@ -1,7 +1,7 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 
-const app = await createApp({ logger: true });
+const app = await createApp({ logger: true, backup: true });
 
 for (const sinyal of ["SIGINT", "SIGTERM"] as const) {
   process.on(sinyal, async () => {

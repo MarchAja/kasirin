@@ -3,11 +3,12 @@
 > POS open source untuk UMKM F&B Indonesia. Berjalan di komputer kasir sendiri,
 > tanpa VPS, tanpa langganan. Pelanggan memesan lewat QR di meja.
 
-Status: Milestone 3 dibangun (pembayaran manual, diskon, tutup meja, ringkasan harian).
+Status: Milestone 4 dibangun (QRIS otomatis, cadangan, dan aset installer Windows).
 Lisensi: AGPL-3.0. Pembuat: @MarchAja.
 
-> Catatan pelaksanaan: keputusan 63–66 (M1 + watermark), 67–73 (M2), dan
-> 74–79 (M3) mencatat penyesuaian saat implementasi.
+> Catatan pelaksanaan: keputusan 63–66 (M1 + watermark), 67–73 (M2),
+> 74–79 (M3), dan 80–86 (M4) mencatat penyesuaian saat implementasi.
+> Semua empat milestone sudah terbangun.
 
 ---
 
@@ -421,3 +422,10 @@ Milestone 3 adalah titik layak pakai. Pembayaran otomatis bukan syarat operasi.
 | 77 | Meja hanya bisa ditutup setelah tagihan lunas; tagihan berstatus `ditutup`, bukan dihapus |
 | 78 | Setelah meja ditutup, pesanan berikutnya membuka kunjungan dan tagihan baru |
 | 79 | Ringkasan harian dihitung dari pembayaran lunas hari berjalan (waktu lokal) |
+| 80 | Antarmuka `PenyediaBayar` dengan adaptor Midtrans dan adaptor simulasi untuk demo tanpa kredensial |
+| 81 | QRIS bisa dibuat kasir maupun pelanggan; mode bayar `manual` menonaktifkan keduanya |
+| 82 | Tagihan dikunci (`tertunda` / `perlu_dicek`) sampai status final; QRIS dibatalkan mengembalikan ke `buka` |
+| 83 | Tombol cek status langsung ke API penyedia wajib ada; kegagalan menandai `perlu_dicek` |
+| 84 | Webhook Midtrans diverifikasi dengan signature SHA-512 |
+| 85 | Cadangan SQLite harian otomatis dengan retensi 7 berkas + ekspor manual ke folder pilihan |
+| 86 | `.exe` tidak dibuat di macOS; workflow `release-windows.yml` membangunnya di runner Windows |

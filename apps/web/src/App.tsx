@@ -3,9 +3,16 @@ import type { FormEvent, ReactNode } from 'react'
 import QRCode from 'qrcode'
 import {
   ApiError,
+  batalQris,
+  bayarMock,
   bayarTagihan,
   beriDiskon,
+  buatCadangan,
+  buatQrisTagihan,
+  cekStatusQris,
   clearToken,
+  daftarCadangan,
+  eksporCadangan,
   getAntrean,
   getHealth,
   getMe,
@@ -15,6 +22,7 @@ import {
   getTagihanMeja,
   getToken,
   getTables,
+  infoQrisPelanggan,
   konfirmasiPembayaran,
   login,
   onUnauthorized,
@@ -23,6 +31,7 @@ import {
   setToken,
   terimaPesanan,
   tutupKunjungan,
+  unduhCadangan,
   updatePengaturan,
 } from './api'
 import { formatJam, formatNomorMeja, formatRupiah, urlFoto } from './format'
@@ -30,6 +39,7 @@ import Pelanggan from './pelanggan/Pelanggan'
 import { teks } from './teks'
 import type {
   BayarRequest,
+  CadanganResponse,
   DiskonRequest,
   GrupAddon,
   LoginRequest,
@@ -41,6 +51,7 @@ import type {
   PengaturanResponse,
   Pengguna,
   PesananAntrean,
+  QrisInfo,
   RingkasanHarian,
   StatusMeja,
   StatusPesanan,
@@ -51,9 +62,21 @@ import type {
 
 type Tone = 'netral' | 'akcen' | 'hijau' | 'kuning' | 'biru' | 'merah'
 type Mode = 'kasir' | 'owner'
-type Halaman = 'meja' | 'menu' | 'qr' | 'ringkasan' | 'pengaturan'
+type Halaman =
+  | 'meja'
+  | 'menu'
+  | 'qr'
+  | 'ringkasan'
+  | 'pengaturan'
+  | 'cadangan'
 type FieldMenu = 'habis' | 'aktif'
-type DialogAksi = 'bayar' | 'diskon' | 'konfirmasi' | 'tutup' | null
+type DialogAksi =
+  | 'bayar'
+  | 'diskon'
+  | 'konfirmasi'
+  | 'tutup'
+  | 'qris'
+  | null
 
 interface Sesi {
   token: string
@@ -123,6 +146,32 @@ const TOMBOL_SEKUNDER =
 function jamDibuat(iso: string): string {
   const tanggal = new Date(iso)
   return Number.isNaN(tanggal.getTime()) ? '' : formatJam(tanggal)
+}
+
+/** Referensi provider dipendekkan agar muat di kartu QRIS. */
+function singkatRef(ref: string): string {
+  if (ref.length <= 20) return ref
+  return `${ref.slice(0, 10)}…${ref.slice(-6)}`
+}
+
+/** Ukuran berkas cadangan dengan desimal koma (Bahasa Indonesia). */
+function formatUkuran(byte: number): string {
+  if (byte < 1024) return `${byte} B`
+  const kilobyte = byte / 1024
+  if (kilobyte < 1024) {
+    return `${kilobyte.toFixed(1).replace('.', ',')} KB`
+  }
+  return `${(kilobyte / 1024).toFixed(1).replace('.', ',')} MB`
+}
+
+/** Tanggal cadangan dalam locale Indonesia. */
+function tanggalCadangan(iso: string): string {
+  const tanggal = new Date(iso)
+  if (Number.isNaN(tanggal.getTime())) return iso
+  return tanggal.toLocaleString('id-ID', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
 }
 
 /** Waktu relatif singkat untuk kartu antrean, cth: "2 mnt lalu". */
@@ -425,6 +474,9 @@ function DetailMejaCard({
   onDiskon,
   onKonfirmasi,
   onTutup,
+  bisaQris,
+  onBayarQris,
+  onLihatQris,
   aksiBerjalan,
 }: {
   meja?: Meja
@@ -436,6 +488,9 @@ function DetailMejaCard({
   onDiskon: () => void
   onKonfirmasi: () => void
   onTutup: () => void
+  bisaQris: boolean
+  onBayarQris: () => void
+  onLihatQris: () => void
   aksiBerjalan: boolean
 }) {
   if (!meja) {
@@ -451,6 +506,8 @@ function DetailMejaCard({
 
   const tone = meja.aktif ? STATUS_MEJA_TONE[meja.status] : 'merah'
   const ditutup = tagihan?.status === 'ditutup'
+  const tertunda = tagihan?.status === 'tertunda'
+  const perluDicek = tagihan?.status === 'perlu_dicek'
   return (
     <div className="rounded-lg border border-line bg-surface p-5 shadow-2">
       <div className="flex items-start justify-between gap-3">
@@ -533,26 +590,66 @@ function DetailMejaCard({
               </div>
             </div>
 
+            {tertunda && (
+              <div
+                role="status"
+                className="mt-4 rounded-md border border-amber/30 bg-amber-soft px-3 py-2.5"
+              >
+                <p className="text-[12px] font-semibold text-amber">
+                  {teks.tagihanTerkunci}
+                </p>
+                <p className="mt-0.5 text-[11px] text-amber">
+                  {teks.tagihanTerkunciSub}
+                </p>
+              </div>
+            )}
+
             <div className="mt-4 space-y-2 border-t border-line pt-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`grid gap-2 ${
+                  bisaQris && tagihan.status === 'buka'
+                    ? 'grid-cols-3'
+                    : 'grid-cols-2'
+                }`}
+              >
                 <button
                   type="button"
-                  disabled={ditutup || aksiBerjalan}
+                  disabled={ditutup || tertunda || aksiBerjalan}
                   onClick={onBayar}
                   className={TOMBOL_AKSI_PRIMER}
                 >
                   {teks.bayar}
                 </button>
+                {bisaQris && tagihan.status === 'buka' && (
+                  <button
+                    type="button"
+                    disabled={aksiBerjalan}
+                    onClick={onBayarQris}
+                    className={TOMBOL_SEKUNDER}
+                  >
+                    {teks.bayarQris}
+                  </button>
+                )}
                 <button
                   type="button"
-                  disabled={ditutup || aksiBerjalan}
+                  disabled={ditutup || tertunda || aksiBerjalan}
                   onClick={onDiskon}
                   className={TOMBOL_SEKUNDER}
                 >
                   {teks.diskon}
                 </button>
               </div>
-              {tagihan.status === 'perlu_dicek' && (
+              {bisaQris && (tertunda || perluDicek) && (
+                <button
+                  type="button"
+                  disabled={aksiBerjalan}
+                  onClick={onLihatQris}
+                  className={TOMBOL_SEKUNDER}
+                >
+                  {tertunda ? teks.lihatQris : teks.cekStatus}
+                </button>
+              )}
+              {perluDicek && (
                 <button
                   type="button"
                   disabled={aksiBerjalan}
@@ -1425,6 +1522,190 @@ function DialogKonfirmasi({
   )
 }
 
+function DialogQris({
+  tagihan,
+  qris,
+  loading,
+  error,
+  cek,
+  simulasiSukses,
+  working,
+  onCekStatus,
+  onBatal,
+  onSimulasi,
+  onBuat,
+  onTutup,
+}: {
+  tagihan: TagihanDetail
+  qris: QrisInfo | null
+  loading: boolean
+  error: string | null
+  cek: { pesan: string; status: string; error?: boolean } | null
+  simulasiSukses: boolean
+  working: boolean
+  onCekStatus: () => Promise<void>
+  onBatal: () => Promise<void>
+  onSimulasi: () => Promise<void>
+  onBuat: () => void
+  onTutup: () => void
+}) {
+  const [gambar, setGambar] = useState<string | null>(null)
+
+  // qr_data boleh URL (Midtrans) atau teks biasa (simulasi): keduanya
+  // dirender sebagai QR melalui qrcode agar tetap bisa dipindai.
+  useEffect(() => {
+    let aktif = true
+    setGambar(null)
+    if (!qris?.qr_data) return
+    QRCode.toDataURL(qris.qr_data, { width: 220, margin: 1 })
+      .then((url) => {
+        if (aktif) setGambar(url)
+      })
+      .catch(() => {
+        if (aktif) setGambar(null)
+      })
+    return () => {
+      aktif = false
+    }
+  }, [qris])
+
+  const cekSelesai = cek !== null && !cek.error && cek.status === 'lunas'
+
+  return (
+    <DialogShell judul={teks.qrisJudul} sub={teks.qrisSub} onTutup={onTutup}>
+      <div className="rounded-md bg-paper px-3.5 py-3">
+        <BarisTotal label={teks.total} nilai={tagihan.total} besar />
+      </div>
+
+      {loading ? (
+        <p className="mt-4 flex items-center justify-center gap-2 py-8 text-[12.5px] text-muted">
+          <Spinner />
+          {teks.qrisMemuat}
+        </p>
+      ) : error ? (
+        <div
+          role="alert"
+          className="mt-4 rounded-md border border-red/30 bg-red-soft px-3.5 py-2.5 text-[12px] text-red"
+        >
+          {error}
+        </div>
+      ) : !qris ? (
+        <div className="mt-4 text-center">
+          <p className="text-[12.5px] text-muted">{teks.qrisTidakAda}</p>
+          <button
+            type="button"
+            disabled={working}
+            onClick={onBuat}
+            className={`mt-3 ${TOMBOL_SEKUNDER}`}
+          >
+            {teks.qrisBuatBaru}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 flex flex-col items-center">
+            {gambar ? (
+              <img
+                src={gambar}
+                alt={teks.qrisSub}
+                className="h-auto w-[180px] rounded-md border border-line bg-surface"
+              />
+            ) : (
+              <div className="grid h-[180px] w-[180px] place-items-center rounded-md border border-dashed border-line bg-paper-2 text-[11px] text-muted">
+                {teks.qrisMemuat}
+              </div>
+            )}
+          </div>
+          <dl className="mt-4 space-y-1.5 border-t border-line pt-3 text-[12px]">
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted">{teks.qrisJumlah}</dt>
+              <dd className="tabular-nums font-bold text-ink">
+                {formatRupiah(qris.amount)}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted">{teks.qrisKedaluwarsa}</dt>
+              <dd className="tabular-nums font-semibold text-ink">
+                {qris.expired_at ? jamDibuat(qris.expired_at) : '—'}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted">{teks.metodeBayar}</dt>
+              <dd className="font-semibold text-ink">
+                {qris.provider === 'mock'
+                  ? teks.providerSimulasi
+                  : teks.providerMidtrans}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted">{teks.qrisReferensi}</dt>
+              <dd className="truncate font-mono text-[11px] text-ink">
+                {singkatRef(qris.provider_ref)}
+              </dd>
+            </div>
+          </dl>
+        </>
+      )}
+
+      {cek && (
+        <div
+          role="status"
+          className={`mt-4 rounded-md border px-3.5 py-2.5 text-[12px] font-semibold ${
+            cek?.error
+              ? 'border-red/30 bg-red-soft text-red'
+              : cekSelesai
+                ? 'border-green/30 bg-green-soft text-green'
+                : 'border-amber/30 bg-amber-soft text-amber'
+          }`}
+        >
+          {cek.pesan}
+        </div>
+      )}
+
+      {qris?.provider === 'mock' && (
+        <p className="mt-4 text-[11.5px] leading-relaxed text-muted">
+          {simulasiSukses ? teks.simulasiBerhasil : teks.cekStatusPetunjuk}
+        </p>
+      )}
+
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button type="button" onClick={onTutup} className={TOMBOL_SEKUNDER}>
+          {teks.tutup}
+        </button>
+        <button
+          type="button"
+          disabled={working || !qris}
+          onClick={() => void onCekStatus()}
+          className={TOMBOL_PRIMER}
+        >
+          {working && <Spinner />}
+          {teks.cekStatusPembayaran}
+        </button>
+      </div>
+      {qris && (
+        <button
+          type="button"
+          disabled={working}
+          onClick={() => void onBatal()}
+          className={`mt-2 ${TOMBOL_SEKUNDER}`}
+        >
+          {teks.batalQris}
+        </button>
+      )}
+      {qris?.provider === 'mock' && (
+        <button
+          type="button"
+          disabled={working}
+          onClick={() => void onSimulasi()}
+          className="mt-2 inline-flex h-9 w-full items-center justify-center rounded-sm border border-dashed border-line bg-paper px-3 text-[11.5px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {teks.simulasikanPembayaran}
+        </button>
+      )}
+    </DialogShell>
+  )
+}
+
 function labelMetode(metode: string): string {
   if (metode === 'tunai') return teks.metodeTunai
   if (metode === 'qris_manual' || metode === 'qris') return teks.metodeQris
@@ -1752,6 +2033,260 @@ function PengaturanPage({
   )
 }
 
+function CadanganPage() {
+  const [data, setData] = useState<CadanganResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [membuat, setMembuat] = useState(false)
+  const [unduhNama, setUnduhNama] = useState<string | null>(null)
+  const [eksporWorking, setEksporWorking] = useState(false)
+  const [path, setPath] = useState('')
+  const [pesan, setPesan] = useState<{ teks: string; sukses: boolean } | null>(
+    null,
+  )
+
+  const muat = useCallback(() => {
+    setLoading(true)
+    daftarCadangan()
+      .then((res) => {
+        setData(res)
+        setError(null)
+      })
+      .catch((err: unknown) => {
+        const detail = pesanError(err, 'biasa')
+        setError(detail === teks.gagalUmum ? teks.cadanganGagal : detail)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    muat()
+  }, [muat])
+
+  useEffect(() => {
+    if (!pesan) return
+    const id = window.setTimeout(() => setPesan(null), 5000)
+    return () => window.clearTimeout(id)
+  }, [pesan])
+
+  function gagal(err: unknown, pengganti: string): string {
+    const detail = pesanError(err, 'biasa')
+    return detail === teks.gagalUmum ? pengganti : detail
+  }
+
+  async function buatSekarang() {
+    setMembuat(true)
+    try {
+      const res = await buatCadangan()
+      setData(res)
+      setPesan({ teks: teks.cadanganBerhasil, sukses: true })
+    } catch (err: unknown) {
+      setPesan({ teks: gagal(err, teks.cadanganGagalBuat), sukses: false })
+    } finally {
+      setMembuat(false)
+    }
+  }
+
+  async function unduh(nama: string) {
+    setUnduhNama(nama)
+    try {
+      const blob = await unduhCadangan(nama)
+      const url = URL.createObjectURL(blob)
+      const tautan = document.createElement('a')
+      tautan.href = url
+      tautan.download = nama
+      document.body.appendChild(tautan)
+      tautan.click()
+      tautan.remove()
+      URL.revokeObjectURL(url)
+    } catch (err: unknown) {
+      setPesan({ teks: gagal(err, teks.cadanganGagalUnduh), sukses: false })
+    } finally {
+      setUnduhNama(null)
+    }
+  }
+
+  async function ekspor(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const tujuan = path.trim()
+    if (tujuan === '') {
+      setPesan({ teks: teks.cadanganPathWajib, sukses: false })
+      return
+    }
+    setEksporWorking(true)
+    try {
+      const res = await eksporCadangan(tujuan)
+      setPesan({
+        teks: `${teks.cadanganEksporBerhasil} ${res.path}`,
+        sukses: true,
+      })
+    } catch (err: unknown) {
+      setPesan({ teks: gagal(err, teks.cadanganEksporGagal), sukses: false })
+    } finally {
+      setEksporWorking(false)
+    }
+  }
+
+  return (
+    <div className="min-w-0 max-w-[760px]">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[21px] font-bold leading-tight tracking-tight">
+            {teks.cadanganJudul}
+          </h1>
+          <p className="mt-1 text-[13px] text-muted">{teks.cadanganSub}</p>
+        </div>
+        <button
+          type="button"
+          onClick={muat}
+          disabled={loading}
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3.5 text-[12px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent disabled:opacity-60"
+        >
+          {loading && <Spinner />}
+          {teks.segarkan}
+        </button>
+      </div>
+
+      {error && <ErrorBanner pesan={error} onRetry={muat} />}
+      {pesan && (
+        <div
+          role="status"
+          className={`mb-4 rounded-md border px-3.5 py-2.5 text-[12px] font-semibold ${
+            pesan.sukses
+              ? 'border-green/30 bg-green-soft text-green'
+              : 'border-red/30 bg-red-soft text-red'
+          }`}
+        >
+          {pesan.teks}
+        </div>
+      )}
+
+      <section className="rounded-lg border border-line bg-surface p-5 shadow-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <Label>{teks.cadanganOtomatis}</Label>
+            <p className="mt-2 text-[12.5px] text-muted">{teks.cadanganFolder}</p>
+            <p className="mt-0.5 break-all font-mono text-[12px] font-semibold text-ink">
+              {data?.folder || '—'}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={membuat}
+            onClick={() => void buatSekarang()}
+            className={`w-full sm:w-auto sm:min-w-[180px] ${TOMBOL_AKSI_PRIMER}`}
+          >
+            {membuat && <Spinner />}
+            {membuat ? teks.cadanganMembuat : teks.cadanganBuat}
+          </button>
+        </div>
+        <p className="mt-4 border-t border-line pt-3 text-[11.5px] text-muted">
+          {teks.cadanganDisarankan}
+        </p>
+      </section>
+
+      <section className="mt-4 rounded-lg border border-line bg-surface p-5 shadow-1">
+        <Label>{teks.cadanganJudul}</Label>
+        {loading && !data ? (
+          <div className="mt-3 h-24 rounded-md border border-line bg-paper-2" />
+        ) : data && data.cadangan.length > 0 ? (
+          <div className="mt-3 overflow-x-auto rounded-md border border-line">
+            <table className="w-full min-w-[460px] text-[12.5px]">
+              <thead className="bg-paper text-left text-[11px] uppercase tracking-[0.06em] text-muted">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">{teks.cadanganNama}</th>
+                  <th className="px-3 py-2 font-semibold">{teks.cadanganUkuran}</th>
+                  <th className="px-3 py-2 font-semibold">{teks.cadanganTanggal}</th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    {teks.cadanganAksi}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.cadangan.map((item) => (
+                  <tr key={item.nama} className="border-t border-line">
+                    <td className="max-w-[220px] truncate px-3 py-2.5 font-mono text-[11.5px] font-semibold text-ink">
+                      {item.nama}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted">
+                      {formatUkuran(item.ukuran)}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted">
+                      {tanggalCadangan(item.dibuat_pada)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <button
+                        type="button"
+                        disabled={unduhNama !== null}
+                        onClick={() => void unduh(item.nama)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-line bg-surface px-3 text-[11.5px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {unduhNama === item.nama && <Spinner />}
+                        {unduhNama === item.nama
+                          ? teks.cadanganMengunduh
+                          : teks.cadanganUnduh}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          !error && (
+            <div className="mt-3 rounded-md border border-dashed border-line bg-paper px-4 py-10 text-center">
+              <p className="text-[13px] font-semibold text-ink">
+                {teks.cadanganKosong}
+              </p>
+              <p className="mt-1 text-[11.5px] text-muted">
+                {teks.cadanganKosongSub}
+              </p>
+            </div>
+          )
+        )}
+      </section>
+
+      <section className="mt-4 rounded-lg border border-line bg-surface p-5 shadow-1">
+        <Label>{teks.cadanganEksporJudul}</Label>
+        <p className="mt-1 text-[11.5px] text-muted">{teks.cadanganEksporSub}</p>
+        <form
+          onSubmit={(e) => {
+            void ekspor(e)
+          }}
+          className="mt-4"
+        >
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+              {teks.cadanganEksporLabel}
+            </span>
+            <input
+              type="text"
+              required
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder={teks.cadanganEksporPlaceholder}
+              className="mt-2 h-11 w-full rounded-sm border border-line bg-paper px-3.5 text-[13px] text-ink outline-none transition-colors duration-150 placeholder:text-idle focus:border-accent focus:bg-surface"
+            />
+            <span className="mt-1.5 block text-[11px] leading-relaxed text-muted">
+              {teks.cadanganEksporBantuan}
+            </span>
+          </label>
+          <button
+            type="submit"
+            disabled={eksporWorking}
+            className={`mt-4 w-full sm:w-auto sm:min-w-[180px] ${TOMBOL_PRIMER}`}
+          >
+            {eksporWorking && <Spinner />}
+            {eksporWorking
+              ? teks.cadanganEksporMenjalankan
+              : teks.cadanganEksporTombol}
+          </button>
+        </form>
+      </section>
+    </div>
+  )
+}
+
 export default function App() {
   // Halaman pelanggan berdiri sendiri: tidak boleh melewati boot/login sama sekali.
   const rutePelanggan = window.location.pathname.match(/^\/m\/([a-f0-9]{24})\/?$/)
@@ -1792,6 +2327,17 @@ export default function App() {
   const [pengaturan, setPengaturan] = useState<PengaturanResponse | null>(null)
   const [pengaturanError, setPengaturanError] = useState<string | null>(null)
 
+  // Milestone 4 — QRIS otomatis untuk tagihan meja terpilih.
+  const [qris, setQris] = useState<QrisInfo | null>(null)
+  const [qrisLoading, setQrisLoading] = useState(false)
+  const [qrisError, setQrisError] = useState<string | null>(null)
+  const [cekStatus, setCekStatus] = useState<{
+    pesan: string
+    status: string
+    error?: boolean
+  } | null>(null)
+  const [simulasiSukses, setSimulasiSukses] = useState(false)
+
   const sedangMasuk = useRef(false)
   const mejaTerpilih = meja?.find((m) => m.id === pilihMejaId)
 
@@ -1805,6 +2351,8 @@ export default function App() {
         setTagihan(null)
         setDialog(null)
         setNotifikasi(null)
+        setQris(null)
+        setCekStatus(null)
         setHalaman('meja')
         setLoginError(teks.sesiBerakhir)
       }),
@@ -1949,6 +2497,9 @@ export default function App() {
   useEffect(() => {
     if (!sesi || halaman !== 'meja') return
     const mejaId = mejaTerpilih?.id
+    setQris(null)
+    setCekStatus(null)
+    setDialog(null)
     if (!mejaId || !mejaTerpilih?.kunjungan_id) {
       tagihanMejaRef.current = null
       setTagihan(null)
@@ -1979,6 +2530,11 @@ export default function App() {
       return
     muatPengaturan()
   }, [sesi, halaman, muatPengaturan])
+
+  // Mode bayar dibutuhkan di papan meja, jadi dimuat sekali saat sesi siap.
+  useEffect(() => {
+    if (sesi) muatPengaturan()
+  }, [sesi, muatPengaturan])
 
   // Notifikasi sukses muncul sebentar lalu hilang sendiri.
   useEffect(() => {
@@ -2022,6 +2578,80 @@ export default function App() {
     }
   }
 
+  /** Membuka dialog QRIS: buat baru saat tagihan buka, lihat yang ada saat tertunda. */
+  function bukaDialogQris(baru: boolean) {
+    if (!tagihan) return
+    setDialog('qris')
+    setQrisError(null)
+    setCekStatus(null)
+    setSimulasiSukses(false)
+    if (!baru && qris) return
+    setQrisLoading(true)
+    const permintaan = baru
+      ? buatQrisTagihan(tagihan.id)
+      : infoQrisPelanggan(mejaTerpilih?.token ?? '')
+    permintaan
+      .then((res) => {
+        setQris(res.qris)
+        if (baru) {
+          if (res.pesan) setNotifikasi(res.pesan)
+          segarkanSetelahAksi()
+        }
+      })
+      .catch((err: unknown) => setQrisError(pesanError(err, 'biasa')))
+      .finally(() => setQrisLoading(false))
+  }
+
+  async function aksiCekStatusQris() {
+    if (!tagihan) return
+    setAksiTagihan(true)
+    try {
+      const res = await cekStatusQris(tagihan.id)
+      setCekStatus({ pesan: res.pesan, status: res.status })
+      if (res.tagihan) setTagihan(res.tagihan)
+      segarkanSetelahAksi()
+    } catch (err: unknown) {
+      const detail = pesanError(err, 'biasa')
+      setCekStatus({
+        pesan: detail === teks.gagalUmum ? teks.cekStatusGagal : detail,
+        status: 'gagal',
+        error: true,
+      })
+    } finally {
+      setAksiTagihan(false)
+    }
+  }
+
+  async function aksiBatalQris() {
+    if (!tagihan) return
+    setAksiTagihan(true)
+    try {
+      await batalQris(tagihan.id)
+      setQris(null)
+      setCekStatus(null)
+      setDialog(null)
+      setNotifikasi(teks.qrisDibatalkan)
+      segarkanSetelahAksi()
+    } catch (err: unknown) {
+      setQrisError(pesanError(err, 'biasa'))
+    } finally {
+      setAksiTagihan(false)
+    }
+  }
+
+  async function aksiSimulasi() {
+    if (!qris) return
+    setAksiTagihan(true)
+    try {
+      await bayarMock(qris.provider_ref)
+      setSimulasiSukses(true)
+    } catch (err: unknown) {
+      setQrisError(pesanError(err, 'biasa'))
+    } finally {
+      setAksiTagihan(false)
+    }
+  }
+
   async function aksiTutup() {
     if (!tagihan) return
     setAksiTagihan(true)
@@ -2030,6 +2660,8 @@ export default function App() {
       setDialog(null)
       tagihanMejaRef.current = null
       setTagihan(null)
+      setQris(null)
+      setCekStatus(null)
       setNotifikasi(teks.tutupBerhasil)
       muatMeja()
       muatRingkasan()
@@ -2127,6 +2759,8 @@ export default function App() {
     setTagihan(null)
     setDialog(null)
     setNotifikasi(null)
+    setQris(null)
+    setCekStatus(null)
     setHalaman('meja')
     setLoginError(null)
     setPin('')
@@ -2327,6 +2961,9 @@ export default function App() {
   }
 
   const owner = sesi.pengguna.peran === 'owner'
+  const bisaQris =
+    pengaturan?.mode_bayar === 'otomatis' ||
+    pengaturan?.mode_bayar === 'keduanya'
   const inisial = sesi.pengguna.nama.trim().charAt(0).toUpperCase() || 'K'
   const kategoriList = menu ? [...menu.kategori].sort((a, b) => a.urutan - b.urutan) : []
   const grupList = menu ? [...menu.grup_addon].sort((a, b) => a.urutan - b.urutan) : []
@@ -2400,11 +3037,18 @@ export default function App() {
               onClick={() => setHalaman('ringkasan')}
             />
             {owner && (
-              <NavItem
-                aktif={halaman === 'pengaturan'}
-                label={teks.navPengaturan}
-                onClick={() => setHalaman('pengaturan')}
-              />
+              <>
+                <NavItem
+                  aktif={halaman === 'pengaturan'}
+                  label={teks.navPengaturan}
+                  onClick={() => setHalaman('pengaturan')}
+                />
+                <NavItem
+                  aktif={halaman === 'cadangan'}
+                  label={teks.navCadangan}
+                  onClick={() => setHalaman('cadangan')}
+                />
+              </>
             )}
           </div>
           <div className="mt-auto rounded-md border border-line bg-surface p-3.5 shadow-1">
@@ -2442,11 +3086,18 @@ export default function App() {
               onClick={() => setHalaman('ringkasan')}
             />
             {owner && (
-              <NavItem
-                aktif={halaman === 'pengaturan'}
-                label={teks.navPengaturan}
-                onClick={() => setHalaman('pengaturan')}
-              />
+              <>
+                <NavItem
+                  aktif={halaman === 'pengaturan'}
+                  label={teks.navPengaturan}
+                  onClick={() => setHalaman('pengaturan')}
+                />
+                <NavItem
+                  aktif={halaman === 'cadangan'}
+                  label={teks.navCadangan}
+                  onClick={() => setHalaman('cadangan')}
+                />
+              </>
             )}
           </div>
 
@@ -2525,6 +3176,9 @@ export default function App() {
                   onDiskon={() => setDialog('diskon')}
                   onKonfirmasi={() => setDialog('konfirmasi')}
                   onTutup={() => setDialog('tutup')}
+                  bisaQris={bisaQris}
+                  onBayarQris={() => bukaDialogQris(true)}
+                  onLihatQris={() => bukaDialogQris(false)}
                   aksiBerjalan={aksiTagihan}
                 />
               </aside>
@@ -2542,6 +3196,8 @@ export default function App() {
               error={pengaturanError}
               onSimpan={(body) => simpanPengaturan(body)}
             />
+          ) : halaman === 'cadangan' ? (
+            <CadanganPage />
           ) : halaman === 'qr' ? (
             <QrPage daftarMeja={meja} />
           ) : (
@@ -2654,6 +3310,22 @@ export default function App() {
               labelTombol={teks.tutupYa}
               onTutup={() => setDialog(null)}
               onKonfirmasi={aksiTutup}
+            />
+          )}
+          {dialog === 'qris' && (
+            <DialogQris
+              tagihan={tagihan}
+              qris={qris}
+              loading={qrisLoading}
+              error={qrisError}
+              cek={cekStatus}
+              simulasiSukses={simulasiSukses}
+              working={aksiTagihan}
+              onCekStatus={aksiCekStatusQris}
+              onBatal={aksiBatalQris}
+              onSimulasi={aksiSimulasi}
+              onBuat={() => bukaDialogQris(true)}
+              onTutup={() => setDialog(null)}
             />
           )}
         </>

@@ -4,16 +4,19 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
+import { jadwalkanCadangan } from "./backup/index.js";
 import { config, dataFile, uploadDir, webDistDir } from "./config.js";
 import { openDb } from "./db/client.js";
 import { migrate } from "./db/migrate.js";
 import { seedDemo } from "./db/seed.js";
 import { HttpError } from "./http.js";
 import { registerAuth } from "./routes/auth.js";
+import { registerCadangan } from "./routes/cadangan.js";
 import { registerCustomer } from "./routes/customer.js";
 import { registerKunjungan } from "./routes/kunjungan.js";
 import { registerMenu } from "./routes/menu.js";
 import { registerOrders } from "./routes/orders.js";
+import { registerQris } from "./routes/qris.js";
 import { registerRingkasan } from "./routes/ringkasan.js";
 import { registerTagihan } from "./routes/tagihan.js";
 import { registerTables } from "./routes/tables.js";
@@ -23,6 +26,7 @@ export interface AppOptions {
   seed?: boolean;
   logger?: boolean;
   serveFrontend?: boolean;
+  backup?: boolean;
 }
 
 export async function createApp(options: AppOptions = {}): Promise<FastifyInstance> {
@@ -63,6 +67,10 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
   registerTagihan(app, db);
   registerKunjungan(app, db);
   registerRingkasan(app, db);
+  registerQris(app, db);
+  registerCadangan(app, db);
+
+  const hentikanCadangan = options.backup ? jadwalkanCadangan(db) : () => {};
 
   if (fs.existsSync(uploadDir)) {
     await app.register(fastifyStatic, {
@@ -84,6 +92,7 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
   }
 
   app.addHook("onClose", async () => {
+    hentikanCadangan();
     db.close();
   });
 

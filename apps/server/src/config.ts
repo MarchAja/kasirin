@@ -30,7 +30,20 @@ export const config = {
   kasirPin: process.env.KASIRIN_KASIR_PIN ?? "123456",
   sessionSecret:
     process.env.KASIRIN_SESSION_SECRET ?? "kasirin-dev-secret-ganti-di-produksi",
+  midtransServerKey: process.env.MIDTRANS_SERVER_KEY ?? "",
+  midtransClientKey: process.env.MIDTRANS_CLIENT_KEY ?? "",
+  midtransProduction: boolEnv("MIDTRANS_IS_PRODUCTION", false),
+  backupEnabled: boolEnv("KASIRIN_BACKUP_ENABLED", true),
+  backupDir: path.resolve(
+    ROOT_DIR,
+    process.env.KASIRIN_BACKUP_DIR || path.join(configDataDir(), "backups"),
+  ),
+  backupKeep: intEnv("KASIRIN_BACKUP_KEEP", 7),
 } as const;
+
+function configDataDir(): string {
+  return process.env.KASIRIN_DATA_DIR ?? "data";
+}
 
 export const dataFile = path.join(config.dataDir, "kasirin.db");
 export const uploadDir = path.join(config.dataDir, "uploads");

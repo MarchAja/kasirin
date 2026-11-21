@@ -4,9 +4,11 @@ POS open source untuk UMKM F&B Indonesia. Pelanggan memesan lewat QR di meja,
 kasir mengelola pesanan dan tagihan, semuanya berjalan di komputer kasir sendiri
 — tanpa VPS, tanpa langganan.
 
-Lisensi: AGPL-3.0. Status: **Milestone 3** — alur kasir penuh: pembayaran manual,
-diskon dengan PIN pemilik, penutupan meja, dan ringkasan harian. Satu warung
-sudah bisa beroperasi penuh.
+Lisensi: AGPL-3.0. Status: **Milestone 4 selesai** — keempat milestone sudah
+terbangun: fondasi, pemesanan pelanggan lewat QR, alur kasir penuh, serta QRIS
+otomatis, cadangan, dan aset installer Windows.
+
+Panduan pemasangan: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 Dibuat oleh [@MarchAja](https://github.com/MarchAja) · Open Source · AGPL-3.0.
 
@@ -62,6 +64,11 @@ Screenshot aplikasi Milestone 3:
 
 - `kasir-m3.png` — panel tagihan lengkap dengan aksi Bayar/Diskon/Tutup meja
 - `ringkasan-m3.png` — ringkasan hari ini per metode bayar dan daftar diskon
+
+Screenshot aplikasi Milestone 4:
+
+- `qris-m4.png` — dialog QRIS dengan cek status dan penguncian tagihan
+- `cadangan-m4.png` — halaman cadangan dan ekspor
 
 Layar kasir responsif: ubah lebar jendela di browser untuk melihat ketiga tata
 letak. Foto contoh memakai Unsplash (lihat `prototype/CREDITS.md`) dan hanya
@@ -128,8 +135,21 @@ yang sudah di-build.
    tagihan terbuka, tagihan perlu dicek, dan daftar diskon beserta alasannya.
 8. Pemilik mengatur pajak PB1, service charge, dan mode bayar di **Pengaturan**.
 
-Pembayaran QRIS otomatis (Midtrans), cadangan otomatis, dan installer Windows
-masuk Milestone 4.
+9. Untuk QRIS otomatis, pemilik mengatur mode bayar di **Pengaturan**
+   (`manual` / `otomatis` / `keduanya`). Tanpa kunci Midtrans, aplikasi memakai
+   penyedia **simulasi** agar alur bisa dicoba: buat QRIS → "Simulasikan
+   pembayaran" → **Cek status pembayaran**. Dengan `MIDTRANS_SERVER_KEY`,
+   adaptor Midtrans yang dipakai dan webhook diverifikasi lewat signature.
+10. Saat QRIS tertunda, tagihan **terkunci** (pesanan tambahan ditolak sampai
+    status final). Tombol **Cek status pembayaran** selalu tersedia; bila
+    koneksi gagal, tagihan ditandai *perlu dicek*.
+11. Halaman **Cadangan** (pemilik) membuat, mengunduh, dan mengekspor cadangan
+    SQLite. Cadangan harian otomatis disimpan di `data/backups` (retensi 7).
+
+Aset installer Windows ada di `installer/` dan `scripts/build-windows.ps1`.
+File `.exe` **tidak** bisa dibuat di macOS/Linux; workflow
+`.github/workflows/release-windows.yml` membangunnya di runner Windows saat tag
+`v*` di-push.
 
 ## Perintah pengembang
 

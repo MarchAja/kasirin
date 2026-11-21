@@ -69,7 +69,7 @@ export function seedDemo(db: Db, opsi?: { paksa?: boolean }): boolean {
     }
 
     db.prepare(
-      `INSERT INTO outlet (id, nama, alamat, mode_bayar) VALUES (1, ?, ?, 'manual')`,
+      `INSERT INTO outlet (id, nama, alamat, mode_bayar) VALUES (1, ?, ?, 'keduanya')`,
     ).run("Warung Bu Sri", "Jl. Mawar No. 12, Indonesia");
 
     db.prepare(

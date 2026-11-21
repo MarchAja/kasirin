@@ -1,6 +1,7 @@
 // Kontrak API KasirIn — didefinisikan lokal agar paket web berdiri sendiri.
 // Milestone 1: autentikasi, meja, dan menu.
 // Milestone 2: pesanan pelanggan, status meja, dan antrean kasir.
+// Milestone 4: QRIS otomatis dan cadangan.
 
 export type Peran = 'owner' | 'kasir'
 
@@ -174,6 +175,8 @@ export interface StatusResponse {
   dibuka_pada: string | null
   pesanan: PesananPublik[]
   tagihan: TagihanRingkas | null
+  qris: QrisInfo | null
+  mode_bayar: 'manual' | 'otomatis' | 'keduanya'
 }
 
 export interface KirimItem {
@@ -288,4 +291,45 @@ export interface RingkasanHarian {
     nominal: number
     alasan: string
   }>
+}
+
+// ---------------------------------------------------------------------------
+// Milestone 4 — QRIS otomatis (simulasi / Midtrans) dan cadangan
+// ---------------------------------------------------------------------------
+
+export type PaymentProvider = 'mock' | 'midtrans'
+
+export interface QrisInfo {
+  qr_data: string
+  provider: PaymentProvider
+  provider_ref: string
+  expired_at: string | null
+  amount: number
+}
+
+export interface QrisResponse {
+  tagihan: TagihanDetail | null
+  qris: QrisInfo | null
+  pesan?: string
+}
+
+export interface CekStatusResponse {
+  tagihan: TagihanDetail | null
+  status: string
+  pesan: string
+}
+
+export interface CadanganInfo {
+  nama: string
+  ukuran: number
+  dibuat_pada: string
+}
+
+export interface CadanganResponse {
+  cadangan: CadanganInfo[]
+  folder: string
+}
+
+export interface EksporRequest {
+  path: string
 }
