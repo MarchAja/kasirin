@@ -47,9 +47,20 @@ try {
     # === 2. Pasang dependensi dan build ===
     Push-Location $RepoRoot
     try {
-        Info 'Menjalankan npm ci ...'
-        & npm ci
+        # npm ci --ignore-scripts dipakai karena node-gyp bawaan npm belum
+        # mendeteksi Visual Studio 2026. Modul native dan esbuild dipasang
+        # terpisah memakai node-gyp 13.
+        Info 'Menjalankan npm ci --ignore-scripts ...'
+        & npm ci --ignore-scripts
         if ($LASTEXITCODE -ne 0) { Gagal 'npm ci gagal. Periksa koneksi internet dan package-lock.json.' }
+
+        Info 'Mengompilasi better-sqlite3 dengan node-gyp 13 ...'
+        & npx --yes node-gyp@13 rebuild --directory node_modules/better-sqlite3
+        if ($LASTEXITCODE -ne 0) { Gagal 'Gagal mengompilasi better-sqlite3. Pasang Visual Studio dengan workload Desktop development with C++.' }
+
+        Info 'Memasang biner esbuild ...'
+        & node node_modules/esbuild/install.js
+        if ($LASTEXITCODE -ne 0) { Gagal 'Gagal memasang biner esbuild.' }
 
         Info 'Menjalankan npm run build ...'
         & npm run build

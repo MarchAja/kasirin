@@ -29,20 +29,8 @@ jobs:
       - name: Siapkan alat C++ (node-gyp)
         uses: ilammy/msvc-dev-cmd@v1
 
-      # node-gyp 11 bawaan npm tidak mengenali Visual Studio 2026 (v18), dan npm
-      # menimpa npm_config_node_gyp untuk skrip lifecycle. Karena itu skrip
-      # dilewati dulu, lalu modul native dikompilasi dengan node-gyp 13.
-      - name: Pasang dependensi (tanpa skrip)
-        run: npm ci --ignore-scripts
-
-      - name: Kompilasi better-sqlite3 dengan node-gyp 13
-        run: npx --yes node-gyp@13 rebuild --directory node_modules/better-sqlite3
-
-      - name: Pasang biner esbuild
-        run: node node_modules/esbuild/install.js
-
-      - name: Build aplikasi
-        run: npm run build
+      # build-windows.ps1 yang menangani npm ci, kompilasi modul native dengan
+      # node-gyp 13, build, ZIP, dan NSIS (lihat skrip untuk detailnya).
 
       # Pilihan yang dipakai: choco install nsis -y (bukan binary-builder).
       - name: Pasang NSIS
