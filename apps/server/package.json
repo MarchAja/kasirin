@@ -1,0 +1,29 @@
+{
+  "name": "@kasirin/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API KasirIn — Fastify + SQLite",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "start:prod": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "db:migrate": "tsx src/db/cli.ts migrate",
+    "db:seed": "tsx src/db/cli.ts seed"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.4.3",
+    "@fastify/static": "^10.1.12",
+    "better-sqlite3": "^13.2.0",
+    "fastify": "^5.12.8",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

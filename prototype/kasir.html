@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>KasirIn — Layar Kasir</title>
+<link rel="stylesheet" href="tokens.css?v=3">
+<link rel="stylesheet" href="watermark.css">
+<meta name="author" content="MarchAja">
+<!-- Mockup KasirIn oleh MarchAja · Open Source · AGPL-3.0 -->
+<style>
+  .app { height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── topbar ── */
+  .topbar {
+    flex: none;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 6px 14px -6px rgba(29, 92, 75, 0.6);
+  }
+  .brand .name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand .sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  .tools { display: flex; align-items: center; gap: 20px; }
+  .clock { font-size: 13px; color: var(--muted); }
+  .user { display: flex; align-items: center; gap: 9px; }
+  .ava {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .uname { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+  .urole { font-size: 11px; color: var(--muted); line-height: 1.2; }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr) 420px;
+    min-height: 0;
+  }
+
+  /* ── kolom meja ── */
+  .tables {
+    padding: 18px;
+    border-right: 1px solid var(--line);
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .sec { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .sec .count { font-size: 11.5px; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile {
+    position: relative;
+    height: 68px;
+    padding: 10px 10px 8px;
+    background: var(--surface);
+    border: 1px solid transparent;
+    border-radius: var(--r);
+    box-shadow: var(--shadow-1);
+    text-align: left;
+    transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+  }
+  .tile:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+  .tile .n { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .tile .s {
+    display: block;
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tile .dot { position: absolute; top: 9px; right: 9px; }
+  .tile--on {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    box-shadow: 0 8px 18px -10px rgba(29, 92, 75, 0.55);
+  }
+  .tile--on .n { color: var(--accent); }
+  .tile--on .s { color: var(--accent); opacity: 0.8; }
+
+  .summary {
+    margin-top: 18px;
+    padding: 14px;
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-1);
+  }
+  .summary .srow { display: flex; align-items: center; justify-content: space-between; }
+  .summary .amount { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; }
+  .summary .ssub { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .bars { display: flex; align-items: flex-end; gap: 5px; height: 34px; margin-top: 12px; }
+  .bars i {
+    flex: 1;
+    border-radius: 3px;
+    background: var(--accent-soft);
+  }
+  .bars i.on { background: var(--accent); }
+
+  /* ── antrean ── */
+  .queue { padding: 20px 24px; overflow: hidden; }
+  .qhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .qhead h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .qhead .muted { font-size: 11.5px; color: var(--muted); }
+
+  .order {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 13px;
+    margin-bottom: 10px;
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-1);
+    border-left: 3px solid var(--amber);
+    transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+  }
+  .order:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+  .tbadge {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-sm);
+    background: var(--amber-soft);
+    color: var(--amber);
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .order .body { flex: 1; min-width: 0; }
+  .order .row1 { display: flex; align-items: baseline; gap: 9px; }
+  .order .row1 b { font-size: 14px; font-weight: 700; }
+  .order .row1 time { font-size: 11px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .chips span {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: var(--paper-2);
+    color: #5f584e;
+  }
+
+  .run {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-1);
+    font-size: 12.5px;
+  }
+  .run b { font-weight: 600; }
+  .run .amt { margin-left: auto; font-weight: 600; }
+
+  /* ── tagihan ── */
+  .side {
+    padding: 20px;
+    border-left: 1px solid var(--line);
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+  }
+  .bill {
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-2);
+    padding: 20px;
+  }
+  .bill-head { display: flex; align-items: center; gap: 12px; }
+  .bill-head .tbadge {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--r);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 16px;
+  }
+  .bill-head .bt { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .bill-head .bm { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .bill-head .pill { margin-left: auto; }
+
+  .rule { height: 1px; background: var(--line); margin: 16px 0; }
+
+  .bline { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13.5px; }
+  .bline .q { color: var(--muted); margin-right: 6px; }
+  .bline--addon {
+    padding: 3px 0 3px 17px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .bline--addon .n::before { content: "+ "; }
+
+  .sums { margin-top: 10px; }
+  .sums div { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); padding: 2px 0; }
+
+  .grand {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 12px 0 16px;
+  }
+  .grand .k { font-size: 12.5px; color: var(--muted); }
+  .grand .v { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+
+  .bill .btn { width: 100%; }
+  .add {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+    border-radius: var(--r-sm);
+    transition: background-color var(--fast) var(--ease);
+  }
+  .add:hover { background: var(--accent-soft); }
+
+  .keys { margin: auto 0 0; text-align: center; font-size: 10.5px; color: #a49a8c; }
+
+  /* ── tablet lanskap & laptop kecil ── */
+  @media (max-width: 1200px) {
+    main { grid-template-columns: 224px minmax(0, 1fr) 344px; }
+    .tables { padding: 14px; }
+    .queue { padding: 16px 18px; }
+    .side { padding: 14px; }
+    .tile { height: 62px; padding: 8px 9px; }
+    .tile .s { font-size: 9.5px; }
+    .summary { padding: 12px; }
+    .summary .amount { font-size: 17px; }
+    .order { padding: 11px; gap: 10px; }
+    .tbadge { width: 40px; height: 40px; font-size: 14px; }
+    .bill { padding: 16px; }
+    .grand .v { font-size: 23px; }
+  }
+
+  /* Layar pendek: sembunyikan kartu shift agar tagihan tetap utuh. */
+  @media (max-height: 820px) {
+    .shift { display: none; }
+  }
+
+  /* ── tablet potret ── */
+  @media (max-width: 1000px) {
+    .clock { display: none; }
+    .tools { gap: 12px; }
+
+    main { display: flex; flex-direction: column; }
+
+    .tables {
+      flex: none;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px 14px;
+    }
+    .tables .sec { margin-bottom: 8px; }
+    .grid {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .grid::-webkit-scrollbar { display: none; }
+    .tile { flex: 0 0 80px; height: 64px; }
+    .summary { display: none; }
+
+    .queue { flex: 1; min-height: 0; padding: 14px 16px; }
+    .order { margin-bottom: 8px; }
+
+    .side {
+      flex: none;
+      border-left: none;
+      border-top: 1px solid var(--line);
+      padding: 12px 16px;
+    }
+    .bill { padding: 16px; }
+    .bill-head .tbadge { width: 40px; height: 40px; font-size: 14px; }
+    .bill-head .bt { font-size: 16px; }
+    .rule { margin: 10px 0; }
+    .bline { padding: 4px 0; }
+    .bline--addon { padding: 2px 0 2px 15px; }
+    .sums { display: none; }
+    .grand { margin: 8px 0 12px; }
+    .grand .v { font-size: 22px; }
+    .add { margin-top: 8px; padding: 6px; }
+    .shift, .keys { display: none; }
+  }
+
+  .shift {
+    margin-top: 14px;
+    padding: 15px 16px;
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-1);
+  }
+  .shift .srow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .shift .srow .label { color: var(--ink); }
+  .shift .kv { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); padding: 2px 0; }
+  .shift .kv b { color: var(--ink); font-weight: 600; }
+  .shift-bar { height: 4px; border-radius: 2px; background: var(--paper-2); margin-top: 12px; overflow: hidden; }
+  .shift-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .shift-note { font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">K</div>
+      <div>
+        <div class="name">KasirIn</div>
+        <div class="sub">Warung Bu Sri · 12 meja</div>
+      </div>
+    </div>
+    <div class="tools">
+      <span class="pill pill--green"><i class="dot dot--served"></i>Lokal</span>
+      <span class="clock num">14:32</span>
+      <div class="user">
+        <div class="ava">R</div>
+        <div>
+          <div class="uname">Rina</div>
+          <div class="urole">Kasir</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <aside class="tables">
+      <div class="sec">
+        <span class="label">Meja</span>
+        <span class="count">12 meja</span>
+      </div>
+
+      <div class="grid">
+        <button class="tile"><span class="n num">01</span><span class="s">kosong</span></button>
+        <button class="tile"><span class="n num">02</span><span class="s">kosong</span></button>
+        <button class="tile"><span class="n num">03</span><span class="s">Rp58 rb</span><i class="dot dot--accepted"></i></button>
+        <button class="tile"><span class="n num">04</span><span class="s">kosong</span></button>
+        <button class="tile"><span class="n num">05</span><span class="s">Rp42 rb</span><i class="dot dot--served"></i></button>
+        <button class="tile"><span class="n num">06</span><span class="s">kosong</span></button>
+        <button class="tile tile--on"><span class="n num">07</span><span class="s">Rp76 rb</span><i class="dot dot--served"></i></button>
+        <button class="tile"><span class="n num">08</span><span class="s">kosong</span></button>
+        <button class="tile"><span class="n num">09</span><span class="s">Rp31 rb</span><i class="dot dot--served"></i></button>
+        <button class="tile"><span class="n num">10</span><span class="s">kosong</span></button>
+        <button class="tile"><span class="n num">11</span><span class="s">kosong</span></button>
+        <button class="tile"><span class="n num">12</span><span class="s">baru</span><i class="dot dot--new"></i></button>
+      </div>
+
+      <div class="summary">
+        <div class="srow">
+          <span class="label">Hari ini</span>
+          <span class="pill pill--accent">+12%</span>
+        </div>
+        <div class="amount num">Rp1.240.000</div>
+        <div class="ssub">38 pesanan · rata-rata Rp32.600</div>
+        <div class="bars" aria-hidden="true">
+          <i style="height:34%"></i><i style="height:52%"></i><i style="height:44%"></i>
+          <i style="height:70%"></i><i style="height:58%"></i><i style="height:86%"></i>
+          <i class="on" style="height:100%"></i>
+        </div>
+      </div>
+    </aside>
+
+    <section class="queue">
+      <div class="qhead">
+        <h2>Pesanan baru</h2>
+        <span class="pill pill--amber">2 menunggu</span>
+      </div>
+
+      <article class="order">
+        <div class="tbadge num">07</div>
+        <div class="body">
+          <div class="row1"><b>Meja 7</b><time class="num">14:29 · 3 mnt</time></div>
+          <div class="chips">
+            <span>2× Nasi Goreng</span><span>1× Es Teh</span>
+          </div>
+        </div>
+        <button class="btn btn--primary btn--sm">Terima</button>
+      </article>
+
+      <article class="order">
+        <div class="tbadge num">12</div>
+        <div class="body">
+          <div class="row1"><b>Meja 12</b><time class="num">14:31 · 1 mnt</time></div>
+          <div class="chips">
+            <span>1× Ayam Bakar</span><span>1× Es Jeruk</span>
+          </div>
+        </div>
+        <button class="btn btn--primary btn--sm">Terima</button>
+      </article>
+
+      <div class="qhead" style="margin-top:22px">
+        <h2>Berjalan</h2>
+        <span class="muted">3 meja</span>
+      </div>
+
+      <div class="run">
+        <span class="pill pill--green">Disajikan</span>
+        <b>Meja 5</b>
+        <span class="amt num">Rp42.000</span>
+      </div>
+      <div class="run">
+        <span class="pill pill--blue">Diterima</span>
+        <b>Meja 3</b>
+        <span class="amt num">Rp58.000</span>
+      </div>
+      <div class="run">
+        <span class="pill pill--green">Disajikan</span>
+        <b>Meja 9</b>
+        <span class="amt num">Rp31.000</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="bill">
+        <div class="bill-head">
+          <div class="tbadge num">07</div>
+          <div>
+            <div class="bt">Meja 7</div>
+            <div class="bm">14:29 · 2 pesanan</div>
+          </div>
+          <span class="pill pill--green">Disajikan</span>
+        </div>
+
+        <div class="rule"></div>
+
+        <div class="bline">
+          <span><span class="q num">2×</span>Nasi Goreng</span>
+          <span class="num">50.000</span>
+        </div>
+        <div class="bline bline--addon">
+          <span class="n">Telur ceplok</span>
+          <span class="num">10.000</span>
+        </div>
+        <div class="bline bline--addon">
+          <span class="n">Keju</span>
+          <span class="num">8.000</span>
+        </div>
+        <div class="bline">
+          <span><span class="q num">1×</span>Es Teh</span>
+          <span class="num">8.000</span>
+        </div>
+
+        <div class="sums">
+          <div><span>Subtotal</span><span class="num">76.000</span></div>
+          <div><span>Pajak & service</span><span>Nonaktif</span></div>
+        </div>
+
+        <div class="rule"></div>
+
+        <div class="grand">
+          <span class="k">Total</span>
+          <span class="v num">Rp76.000</span>
+        </div>
+
+        <button class="btn btn--primary">Bayar</button>
+        <button class="add">+ Tambah item</button>
+      </div>
+
+      <div class="shift">
+        <div class="srow">
+          <span class="label">Shift kamu</span>
+          <span class="pill pill--green">Aktif</span>
+        </div>
+        <div class="kv"><span>Mulai</span><b class="num">08:00</b></div>
+        <div class="kv"><span>Transaksi</span><b class="num">38</b></div>
+        <div class="kv"><span>Tunai</span><b class="num">Rp420.000</b></div>
+        <div class="kv"><span>QRIS</span><b class="num">Rp820.000</b></div>
+        <div class="shift-bar"><i style="width:62%"></i></div>
+        <div class="shift-note">Sisa 3 jam 28 menit</div>
+      </div>
+
+      <p class="keys">F2 terima · F4 bayar · Esc tutup</p>
+    </aside>
+  </main>
+</div>
+
+<div class="wm" aria-hidden="true">
+  <span class="wm-mark">K</span>
+  <span>KasirIn</span><span class="wm-sep">·</span><b>@MarchAja</b>
+  <span class="wm-sep">·</span><span>Open Source</span>
+  <span class="wm-sep">·</span><span>AGPL-3.0</span>
+</div>
+</body>
+</html>

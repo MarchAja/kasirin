@@ -1,0 +1,69 @@
+/* Watermark mockup — identitas pembuat, bukan bagian dari UI produksi. */
+
+.wm {
+  position: fixed;
+  z-index: 9999;
+  right: 10px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(236, 227, 213, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #7a7266;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(27, 25, 23, 0.06);
+}
+.wm .wm-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: #1d5c4b;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 8px;
+  font-weight: 700;
+}
+.wm b { color: #1b1917; font-weight: 700; }
+.wm .wm-sep { color: #cfc6b8; }
+
+/* Layar pelanggan: badge kecil di pinggir atas agar tidak menutupi keranjang. */
+@media (max-width: 600px) {
+  .wm {
+    top: 2px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 8px;
+    font-size: 8px;
+    gap: 4px;
+  }
+  .wm .wm-mark { width: 12px; height: 12px; font-size: 7px; }
+}
+
+/* Dialog berada di top layer, jadi watermark juga disalin ke dalam sheet. */
+.wm--sheet {
+  top: 10px;
+  right: 54px;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  position: absolute;
+  padding: 3px 8px;
+  font-size: 8px;
+  gap: 4px;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.wm--sheet .wm-mark { width: 12px; height: 12px; font-size: 7px; }

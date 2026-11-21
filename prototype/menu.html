@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>KasirIn — Menu Pelanggan</title>
+<link rel="stylesheet" href="tokens.css?v=3">
+<link rel="stylesheet" href="mobile.css?v=3">
+<link rel="stylesheet" href="watermark.css">
+<meta name="author" content="MarchAja">
+<!-- Mockup KasirIn oleh MarchAja · Open Source · AGPL-3.0 -->
+</head>
+<body>
+<div class="phone">
+  <header class="top">
+    <div>
+      <h1>Warung Bu Sri</h1>
+      <div class="meta">
+        <span class="pill pill--green"><i class="dot dot--served"></i>Buka</span>
+        <span class="tbl">Meja 7 · makan di tempat</span>
+      </div>
+    </div>
+    <button class="cart" aria-label="Keranjang, 2 item">
+      <svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+      <span class="badge num">2</span>
+    </button>
+  </header>
+
+  <div class="search" role="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+    Cari menu, mis. nasi goreng
+  </div>
+
+  <div class="sec-head">
+    <h2>Favorit hari ini</h2>
+    <span>3 pilihan</span>
+  </div>
+
+  <ul class="rail" aria-label="Menu favorit">
+    <li>
+      <article class="fcard">
+        <img src="img/nasi-goreng.jpg" alt="Nasi goreng dengan telur dan irisan lemon">
+        <span class="tag">Paling laris</span>
+        <div class="cap"><b>Nasi Goreng</b><span class="num">Rp25.000</span></div>
+      </article>
+    </li>
+    <li>
+      <article class="fcard">
+        <img src="img/ayam-bakar.jpg" alt="Aneka ayam bakar dan sate">
+        <div class="cap"><b>Ayam Bakar</b><span class="num">Rp28.000</span></div>
+      </article>
+    </li>
+    <li>
+      <article class="fcard">
+        <img src="img/es-teh.jpg" alt="Dua gelas es teh dengan daun mint">
+        <div class="cap"><b>Es Teh</b><span class="num">Rp8.000</span></div>
+      </article>
+    </li>
+  </ul>
+
+  <nav class="chips" aria-label="Kategori menu">
+    <button class="chip chip--on">Semua</button>
+    <button class="chip">Makanan</button>
+    <button class="chip">Minuman</button>
+    <button class="chip">Camilan</button>
+  </nav>
+
+  <div class="list-head">
+    <h2>Semua menu</h2>
+    <span>12 item</span>
+  </div>
+
+  <main class="menu">
+    <article class="mcard">
+      <img src="img/nasi-goreng.jpg" alt="">
+      <div class="mbody">
+        <div class="mname">Nasi Goreng</div>
+        <div class="mdesc">Telur, kecap, bawang goreng</div>
+        <div class="mprice num">Rp25.000</div>
+      </div>
+      <button class="madd">Pilih</button>
+    </article>
+
+    <article class="mcard">
+      <img src="img/es-teh.jpg" alt="">
+      <div class="mbody">
+        <div class="mname">Es Teh</div>
+        <div class="mdesc">Teh tubruk, gula batu, es serut</div>
+        <div class="mprice num">Rp8.000</div>
+      </div>
+      <button class="madd madd--icon" aria-label="Tambah Es Teh">+</button>
+    </article>
+
+    <article class="mcard mcard--off">
+      <img src="img/ayam-bakar.jpg" alt="">
+      <div class="mbody">
+        <div class="mname">Ayam Bakar</div>
+        <div class="mdesc">Sambal kecap, lalapan</div>
+        <div class="mprice num">Rp28.000</div>
+      </div>
+      <span class="pill">Habis</span>
+    </article>
+
+    <button class="more">Lihat semua 12 menu</button>
+  </main>
+
+  <div class="cartbar">
+    <div class="thumbs">
+      <img src="img/nasi-goreng.jpg" alt="">
+      <img src="img/es-teh.jpg" alt="">
+    </div>
+    <div class="cinfo">
+      <div class="clabel">2 item</div>
+      <div class="ctotal num">Rp33.000</div>
+    </div>
+    <button class="btn btn--primary">Keranjang</button>
+  </div>
+</div>
+
+<div class="wm" aria-hidden="true">
+  <span class="wm-mark">K</span>
+  <span>KasirIn</span><span class="wm-sep">·</span><b>@MarchAja</b>
+  <span class="wm-sep">·</span><span>Open Source</span>
+  <span class="wm-sep">·</span><span>AGPL-3.0</span>
+</div>
+</body>
+</html>
