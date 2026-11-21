@@ -46,23 +46,24 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kasirin-windows
-          path: |
-            dist-windows/KasirIn-windows.zip
-            dist-windows/KasirIn-Setup.exe
-          if-no-files-found: warn
+          path: dist-windows/KasirIn-windows.zip
+          if-no-files-found: error
 
       - name: Buat GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist-windows/KasirIn-windows.zip
-            dist-windows/KasirIn-Setup.exe
+          files: dist-windows/KasirIn-windows.zip
           generate_release_notes: true
           body: |
             Paket KasirIn untuk Windows (${{ github.ref_name }}).
 
-            - `KasirIn-windows.zip` — versi portabel, ekstrak lalu jalankan `run.cmd`.
-            - `KasirIn-Setup.exe` — installer NSIS, tidak perlu hak administrator.
+            - `KasirIn-windows.zip` — versi portabel berisi `node_modules`.
+              Ekstrak lalu jalankan `run.cmd`; tidak perlu `npm ci` atau Visual
+              Studio Build Tools. Cukup Node.js 22+ terpasang. Panduan ada di bawah.
+
+            **Installer `.exe` — coming soon.** Untuk sementara gunakan ZIP dan
+            ikuti panduan instalasi manual:
+            https://github.com/MarchAja/kasirin#instalasi-manual-windows
 
             Butuh Node.js 22 atau lebih baru. Data tersimpan di `%LOCALAPPDATA%\KasirIn\data`.
             Panduan lengkap: https://github.com/MarchAja/kasirin/blob/main/docs/DEPLOYMENT.md

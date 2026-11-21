@@ -80,14 +80,46 @@ Panduan web modern dari Google Chrome terpasang di
 ## Rencana teknologi
 
 TypeScript, Node 22, Fastify, SQLite, React, polling 3 detik. Target utama
-Windows. Distribusi MVP lewat `start.bat`, lalu installer `.exe`.
+Windows. Distribusi lewat ZIP portabel dan `start.bat`. **Installer `.exe` —
+coming soon.**
 
-## Mulai dari mana
+## Instalasi manual (Windows)
 
-Milestone 1: skema basis data, migrasi, autentikasi PIN/password, meja, menu,
-dan mode demo.
+> Belum ada installer `.exe`. Gunakan ZIP portabel dari halaman rilis atau
+> jalankan langsung dari sumber. Keduanya membutuhkan **Node.js 22 atau lebih
+> baru** terpasang di komputer (https://nodejs.org/).
 
-## Menjalankan secara lokal
+### Dari ZIP rilis (paling mudah)
+
+1. Unduh `KasirIn-windows.zip` dari
+   https://github.com/MarchAja/kasirin/releases/latest
+2. Ekstrak ke folder, misalnya `C:\KasirIn`.
+3. Klik dua kali `run.cmd` (atau jalankan dari Command Prompt di folder itu).
+   `node_modules` sudah ikut di dalam ZIP, jadi **tidak perlu** `npm ci` dan
+   tidak perlu Visual Studio Build Tools.
+4. Buka http://localhost:3000 di browser.
+5. Masuk dengan PIN kasir `123456` atau kata sandi pemilik `owner123`
+   (PIN diskon pemilik: `246810`).
+
+Data tersimpan di `%LOCALAPPDATA%\KasirIn\data`. Untuk memindahkannya, set
+`KASIRIN_DATA_DIR` sebelum menjalankan `run.cmd`. Port bisa diubah lewat `PORT`.
+
+### Dari sumber
+
+```bat
+npm ci
+npm run build
+start.bat
+```
+
+Lalu buka http://localhost:3000. Karena `better-sqlite3` dikompilasi saat
+instalasi, mode ini membutuhkan Node.js 22+ **dan** Visual Studio Build Tools
+dengan workload *Desktop development with C++*.
+
+Panduan lengkap (firewall, ngrok, cadangan, pemulihan):
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+## Menjalankan secara lokal (pengembangan)
 
 Butuh **Node.js 22 atau lebih baru**. Dari akar repositori:
 

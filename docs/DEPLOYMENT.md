@@ -34,8 +34,8 @@ Data demo ditanam otomatis saat mode demo aktif. Perintah lain yang berguna:
 
 ### Cara B — Produksi dari sumber di Windows (MVP launcher)
 
-Ini cara paling sederhana untuk memakai KasirIn di komputer kasir sebelum
-tersedia installer. Butuh Node.js 22+ terpasang.
+Ini cara memakai KasirIn langsung dari sumber (installer `.exe` masih coming
+soon). Butuh Node.js 22+ dan Visual Studio Build Tools untuk `better-sqlite3`.
 
 1. Unduh/ekstrak repositori ke folder, misalnya `C:\KasirIn`.
 2. Buka **Command Prompt** di folder tersebut, lalu jalankan:
@@ -54,25 +54,22 @@ tersedia installer. Butuh Node.js 22+ terpasang.
 Biarkan jendela Command Prompt tetap terbuka selama KasirIn dipakai; menutupnya
 akan menghentikan server.
 
-### Cara C — Paket installer (setelah dibangun)
+### Cara C — ZIP portabel dari halaman rilis
 
-Setelah paket Windows dibangun (lihat [bagian 7](#7-membangun-paket-windows)),
-ada dua berkas di folder `dist-windows/`:
+> **Installer `.exe` — coming soon.** Untuk sementara, rilis hanya menyertakan
+> `KasirIn-windows.zip`. Skrip NSIS tetap ada di repo dan bisa dipakai untuk
+> membangun installer secara lokal, tetapi berkasnya belum dipublikasikan.
 
-| Berkas | Cara pakai |
-|---|---|
-| `KasirIn-Setup.exe` | Jalankan installer NSIS, lalu klik **Run KasirIn** di akhir instalasi. Tidak perlu hak administrator. |
-| `KasirIn-windows.zip` | Ekstrak ke folder mana pun, lalu jalankan `run.cmd`. |
+1. Unduh `KasirIn-windows.zip` dari
+   https://github.com/MarchAja/kasirin/releases/latest
+2. Ekstrak ke folder, misalnya `C:\KasirIn`.
+3. Jalankan `run.cmd` di folder tersebut.
+4. Buka http://localhost:3000 di browser.
 
-Keduanya tetap membutuhkan **Node.js 22+** terpasang di komputer kasir.
-Installer menempatkan aplikasi di `%LOCALAPPDATA%\KasirIn` dan membuat pintasan
-di Start Menu (plus pintasan Desktop bila dipilih saat instalasi).
-
-> Paket menyertakan `package.json` dan `package-lock.json`, tetapi **tidak
-> membundel `node_modules`**. Pada komputer yang belum pernah menjalankan
-> KasirIn, jalankan `npm ci` sekali di folder hasil ekstrak/instal sebelum
-> memakai `run.cmd`, agar dependensi (Fastify, better-sqlite3, dan lain-lain)
-> terpasang dengan versi yang cocok untuk Windows.
+ZIP sudah **menyertakan `node_modules`** hasil build di Windows, sehingga tidak
+perlu `npm ci` dan tidak perlu Visual Studio Build Tools di komputer kasir.
+Satu-satunya prasyarat adalah **Node.js 22+** terpasang. `run.cmd` otomatis
+mengarahkan data ke `%LOCALAPPDATA%\KasirIn\data`.
 
 Alur singkat pemakaian harian:
 
