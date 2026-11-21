@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import QRCode from 'qrcode'
 import {
   ApiError,
   clearToken,
+  getAntrean,
   getHealth,
   getMe,
   getMenu,
@@ -11,9 +13,12 @@ import {
   login,
   onUnauthorized,
   patchMenu,
+  sajikanPesanan,
   setToken,
+  terimaPesanan,
 } from './api'
 import { formatJam, formatNomorMeja, formatRupiah, urlFoto } from './format'
+import Pelanggan from './pelanggan/Pelanggan'
 import { teks } from './teks'
 import type {
   GrupAddon,
@@ -23,11 +28,14 @@ import type {
   MenuResponse,
   PatchMenuRequest,
   Pengguna,
+  PesananAntrean,
+  StatusMeja,
+  StatusPesanan,
 } from './types'
 
 type Tone = 'netral' | 'akcen' | 'hijau' | 'kuning' | 'biru' | 'merah'
 type Mode = 'kasir' | 'owner'
-type Halaman = 'meja' | 'menu'
+type Halaman = 'meja' | 'menu' | 'qr'
 type FieldMenu = 'habis' | 'aktif'
 
 interface Sesi {
@@ -53,8 +61,49 @@ const DOT_TONE: Record<Tone, string> = {
   merah: 'bg-red',
 }
 
+const STATUS_MEJA_TONE: Record<StatusMeja, Tone> = {
+  kosong: 'netral',
+  baru: 'kuning',
+  diterima: 'biru',
+  disajikan: 'hijau',
+  perlu_dicek: 'merah',
+}
+
+const LABEL_STATUS_MEJA: Record<StatusMeja, string> = {
+  kosong: teks.statusKosong,
+  baru: teks.statusBaru,
+  diterima: teks.statusDiterima,
+  disajikan: teks.statusDisajikan,
+  perlu_dicek: teks.statusPerluDicek,
+}
+
 const TOMBOL_PRIMER =
   'inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-[14px] font-semibold text-white shadow-2 transition-all duration-150 hover:bg-accent-2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50'
+
+/** Waktu relatif singkat untuk kartu antrean, cth: "2 mnt lalu". */
+function waktuRelatif(iso: string): string {
+  const waktu = new Date(iso).getTime()
+  if (Number.isNaN(waktu)) return ''
+  const menit = Math.max(0, Math.floor((Date.now() - waktu) / 60_000))
+  if (menit < 1) return teks.baruSaja
+  if (menit < 60) return `${menit} ${teks.menitLalu}`
+  return `${Math.floor(menit / 60)} ${teks.jamLalu}`
+}
+
+function labelStatusPesanan(status: StatusPesanan): string {
+  switch (status) {
+    case 'baru':
+      return teks.statusBaru
+    case 'diterima':
+      return teks.statusDiterima
+    case 'disajikan':
+      return teks.statusDisajikan
+    case 'ditutup':
+      return teks.statusDitutup
+    case 'dibatalkan':
+      return teks.statusDibatalkan
+  }
+}
 
 function pesanError(err: unknown, konteks: 'login' | 'biasa'): string {
   if (!(err instanceof ApiError)) return teks.gagalUmum
@@ -236,6 +285,7 @@ function TableTile({
   selected: boolean
   onSelect: (id: number) => void
 }) {
+  const tone = meja.aktif ? STATUS_MEJA_TONE[meja.status] : 'merah'
   return (
     <button
       type="button"
@@ -255,50 +305,79 @@ function TableTile({
           {formatNomorMeja(meja.nomor)}
         </span>
         <span
-          className={`mt-0.5 h-[7px] w-[7px] shrink-0 rounded-full ${meja.aktif ? 'bg-idle' : 'bg-red'}`}
+          className={`mt-0.5 h-[7px] w-[7px] shrink-0 rounded-full ${DOT_TONE[tone]}`}
           aria-hidden="true"
         />
       </span>
       <span className={`mt-3 block text-[12px] ${meja.aktif ? 'text-muted' : 'text-red'}`}>
-        {meja.aktif ? teks.kosong : teks.nonaktif}
+        {meja.total > 0
+          ? formatRupiah(meja.total)
+          : meja.aktif
+            ? teks.kosong
+            : teks.nonaktif}
       </span>
+      {meja.aktif && meja.status !== 'kosong' && (
+        <span className={`mt-1 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PIL_TONE[tone]}`}>
+          {LABEL_STATUS_MEJA[meja.status]}
+        </span>
+      )}
     </button>
   )
 }
 
 function DetailMejaCard({ meja }: { meja?: Meja }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface p-5 shadow-2">
-      {meja ? (
-        <>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent-soft tabular-nums text-[16px] font-bold text-accent">
-                {formatNomorMeja(meja.nomor)}
-              </span>
-              <div>
-                <h2 className="text-[16px] font-bold leading-tight">
-                  {teks.mejaJudul} {formatNomorMeja(meja.nomor)}
-                </h2>
-                <p className="mt-0.5 text-[11.5px] text-muted">
-                  {teks.kosong} · {teks.siapDigunakan}
-                </p>
-              </div>
-            </div>
-            <Pill tone={meja.aktif ? 'akcen' : 'merah'} dot>
-              {meja.aktif ? teks.aktif : teks.nonaktif}
-            </Pill>
-          </div>
-          <div className="my-5 h-px bg-line" />
-          <div className="rounded-md border border-dashed border-line bg-paper px-4 py-10 text-center">
-            <p className="text-[13.5px] font-semibold text-ink">{teks.belumPesanan}</p>
-            <p className="mt-1.5 text-[12px] text-muted">{teks.milestone2}</p>
-          </div>
-        </>
-      ) : (
+  if (!meja) {
+    return (
+      <div className="rounded-lg border border-line bg-surface p-5 shadow-2">
         <div className="py-14 text-center">
           <p className="text-[13.5px] font-semibold text-ink">{teks.pilihMeja}</p>
           <p className="mt-1.5 text-[12px] text-muted">{teks.pilihMejaSub}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const tone = meja.aktif ? STATUS_MEJA_TONE[meja.status] : 'merah'
+  return (
+    <div className="rounded-lg border border-line bg-surface p-5 shadow-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent-soft tabular-nums text-[16px] font-bold text-accent">
+            {formatNomorMeja(meja.nomor)}
+          </span>
+          <div>
+            <h2 className="text-[16px] font-bold leading-tight">
+              {teks.mejaJudul} {formatNomorMeja(meja.nomor)}
+            </h2>
+            <p className="mt-0.5 text-[11.5px] text-muted">
+              {LABEL_STATUS_MEJA[meja.status]}
+            </p>
+          </div>
+        </div>
+        <Pill tone={meja.aktif ? tone : 'merah'} dot>
+          {meja.aktif ? LABEL_STATUS_MEJA[meja.status] : teks.nonaktif}
+        </Pill>
+      </div>
+      <div className="my-5 h-px bg-line" />
+      {meja.kunjungan_id ? (
+        <div className="rounded-md border border-line bg-paper px-4 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+              {teks.kunjunganAktif}
+            </span>
+            <Pill tone={tone} dot>
+              {LABEL_STATUS_MEJA[meja.status]}
+            </Pill>
+          </div>
+          <p className="mt-3 text-[12px] text-muted">{teks.tagihanBerjalan}</p>
+          <p className="mt-1 tabular-nums text-[26px] font-bold leading-none text-ink">
+            {formatRupiah(meja.total)}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-line bg-paper px-4 py-10 text-center">
+          <p className="text-[13.5px] font-semibold text-ink">{teks.belumPesanan}</p>
+          <p className="mt-1.5 text-[12px] text-muted">{teks.belumPesananSub}</p>
         </div>
       )}
     </div>
@@ -347,6 +426,233 @@ function SkeletonMenu() {
       {Array.from({ length: 5 }, (_, i) => (
         <div key={i} className="h-[72px] rounded-md border border-line bg-paper-2" />
       ))}
+    </div>
+  )
+}
+
+function AntreanCard({
+  pesanan,
+  working,
+  onAksi,
+}: {
+  pesanan: PesananAntrean
+  working: boolean
+  onAksi: (pesanan: PesananAntrean) => void
+}) {
+  const baru = pesanan.status === 'baru'
+  const tone: Tone = baru ? 'kuning' : 'biru'
+  return (
+    <div
+      className={`rounded-md border border-line border-l-[3px] bg-surface p-4 shadow-1 ${
+        baru ? 'border-l-amber' : 'border-l-blue'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent-soft tabular-nums text-[13px] font-bold text-accent">
+            {formatNomorMeja(pesanan.meja_nomor)}
+          </span>
+          <div className="leading-tight">
+            <p className="text-[12.5px] font-semibold text-ink">
+              {teks.mejaJudul} {formatNomorMeja(pesanan.meja_nomor)}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">{waktuRelatif(pesanan.dibuat_pada)}</p>
+          </div>
+        </div>
+        <Pill tone={tone} dot>
+          {labelStatusPesanan(pesanan.status)}
+        </Pill>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {pesanan.items.map((item) => (
+          <span
+            key={item.id}
+            className="rounded-full bg-paper-2 px-2.5 py-1 text-[11px] font-medium text-muted"
+          >
+            <span className="tabular-nums">{item.jumlah}×</span> {item.nama}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
+        <span className="tabular-nums text-[15px] font-bold text-ink">
+          {formatRupiah(pesanan.total)}
+        </span>
+        <button
+          type="button"
+          disabled={working}
+          onClick={() => onAksi(pesanan)}
+          className="inline-flex h-8 items-center gap-2 rounded-md bg-accent px-3.5 text-[12px] font-semibold text-white shadow-1 transition-all duration-150 hover:opacity-90 active:translate-y-px disabled:opacity-50"
+        >
+          {working && <Spinner />}
+          {baru ? teks.terima : teks.sajikan}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PesananBaruSection({
+  antrean,
+  loading,
+  error,
+  onRetry,
+  onAksi,
+  working,
+}: {
+  antrean: PesananAntrean[] | null
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+  onAksi: (pesanan: PesananAntrean) => void
+  working: number | null
+}) {
+  const menunggu = antrean?.filter((p) => p.status === 'baru').length ?? 0
+  return (
+    <section className="mb-6 rounded-lg border border-line bg-paper p-4 shadow-1">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[14px] font-bold text-ink">{teks.pesananBaru}</h2>
+          <Pill tone={menunggu > 0 ? 'kuning' : 'netral'} dot>
+            {menunggu} {teks.menunggu}
+          </Pill>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex h-8 items-center gap-2 rounded-sm border border-line bg-surface px-3 text-[11.5px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent"
+        >
+          {loading && <Spinner />}
+          {teks.segarkan}
+        </button>
+      </div>
+
+      {error && <ErrorBanner pesan={error} onRetry={onRetry} />}
+
+      {loading && antrean === null ? (
+        <div className="space-y-2.5">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-24 rounded-md border border-line bg-paper-2" />
+          ))}
+        </div>
+      ) : antrean && antrean.length > 0 ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {antrean.map((pesanan) => (
+            <AntreanCard
+              key={pesanan.id}
+              pesanan={pesanan}
+              working={working === pesanan.id}
+              onAksi={onAksi}
+            />
+          ))}
+        </div>
+      ) : (
+        !error && (
+          <div className="rounded-md border border-dashed border-line bg-surface px-4 py-8 text-center">
+            <p className="text-[13px] font-semibold text-ink">{teks.antreanKosong}</p>
+            <p className="mt-1 text-[11.5px] text-muted">{teks.antreanKosongSub}</p>
+          </div>
+        )
+      )}
+    </section>
+  )
+}
+
+function QrPage({ daftarMeja }: { daftarMeja: Meja[] | null }) {
+  const [qr, setQr] = useState<{ id: number; nomor: number; data: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let aktif = true
+    setLoading(true)
+    setError(null)
+    Promise.all(
+      (daftarMeja ?? [])
+        .filter((m) => m.aktif)
+        .map(async (m) => ({
+          id: m.id,
+          nomor: m.nomor,
+          data: await QRCode.toDataURL(
+            `${window.location.origin}/m/${m.token}`,
+            { width: 220, margin: 1 },
+          ),
+        })),
+    )
+      .then((hasil) => {
+        if (aktif) setQr(hasil)
+      })
+      .catch(() => {
+        if (aktif) setError(teks.qrGagal)
+      })
+      .finally(() => {
+        if (aktif) setLoading(false)
+      })
+    return () => {
+      aktif = false
+    }
+  }, [daftarMeja])
+
+  return (
+    <div className="min-w-0">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[21px] font-bold leading-tight tracking-tight">
+            {teks.qrJudul}
+          </h1>
+          <p className="mt-1 text-[13px] text-muted">{teks.qrSub}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3.5 text-[12px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent"
+        >
+          {teks.qrCetak}
+        </button>
+      </div>
+
+      {error && <ErrorBanner pesan={error} />}
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-[13px] text-muted">
+          <Spinner />
+          {teks.qrMemuat}
+        </div>
+      ) : qr.length === 0 ? (
+        <div className="rounded-md border border-dashed border-line bg-surface px-6 py-14 text-center">
+          <p className="text-[13.5px] font-semibold">{teks.qrKosong}</p>
+        </div>
+      ) : (
+        <div className="qr-sheet grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {qr.map((item) => (
+            <div
+              key={item.id}
+              className="qr-card rounded-lg border border-line bg-surface p-5 text-center shadow-1"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+                {teks.mejaJudul}
+              </p>
+              <p className="mt-1 tabular-nums text-[22px] font-bold leading-none text-ink">
+                {formatNomorMeja(item.nomor)}
+              </p>
+              <img
+                src={item.data}
+                alt={`${teks.mejaJudul} ${formatNomorMeja(item.nomor)}`}
+                className="mx-auto my-4 h-auto w-[160px]"
+              />
+              <p className="text-[11.5px] text-muted">{teks.qrPindai}</p>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="no-print mt-3 h-8 w-full rounded-sm border border-line text-[11.5px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent"
+              >
+                {teks.qrCetak}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -494,6 +800,10 @@ function GrupAddonCard({ grup }: { grup: GrupAddon }) {
 }
 
 export default function App() {
+  // Halaman pelanggan berdiri sendiri: tidak boleh melewati boot/login sama sekali.
+  const rutePelanggan = window.location.pathname.match(/^\/m\/([a-f0-9]{24})\/?$/)
+  if (rutePelanggan) return <Pelanggan token={rutePelanggan[1]} />
+
   const [booting, setBooting] = useState(true)
   const [sesi, setSesi] = useState<Sesi | null>(null)
   const [mode, setMode] = useState<Mode>('kasir')
@@ -512,6 +822,9 @@ export default function App() {
   const [patching, setPatching] = useState<number | null>(null)
   const [healthOk, setHealthOk] = useState<boolean | null>(null)
   const [jam, setJam] = useState(() => formatJam(new Date()))
+  const [antrean, setAntrean] = useState<PesananAntrean[] | null>(null)
+  const [antreanError, setAntreanError] = useState<string | null>(null)
+  const [aksiAntrean, setAksiAntrean] = useState<number | null>(null)
   const sedangMasuk = useRef(false)
 
   // 401 dari panggilan mana pun mengembalikan pengguna ke layar masuk.
@@ -605,6 +918,43 @@ export default function App() {
   useEffect(() => {
     if (sesi?.pengguna.peran === 'owner' && halaman === 'menu') muatMenu()
   }, [sesi, halaman, muatMenu])
+
+  const muatAntrean = useCallback(() => {
+    getAntrean()
+      .then((res) => {
+        setAntrean(res.pesanan)
+        setAntreanError(null)
+      })
+      .catch((err: unknown) => setAntreanError(pesanError(err, 'biasa')))
+  }, [])
+
+  // Antrean diperbarui tiap 3 detik hanya saat papan meja dibuka.
+  useEffect(() => {
+    if (!sesi || halaman !== 'meja') return
+    muatAntrean()
+    const id = window.setInterval(muatAntrean, 3000)
+    return () => window.clearInterval(id)
+  }, [sesi, halaman, muatAntrean])
+
+  async function aksiPesanan(pesanan: PesananAntrean) {
+    if (aksiAntrean !== null) return
+    setAksiAntrean(pesanan.id)
+    setAntreanError(null)
+    try {
+      if (pesanan.status === 'baru') await terimaPesanan(pesanan.id)
+      else await sajikanPesanan(pesanan.id)
+      setAntrean((sebelum) =>
+        sebelum ? sebelum.filter((p) => p.id !== pesanan.id) : sebelum,
+      )
+      muatMeja()
+      muatAntrean()
+    } catch (err: unknown) {
+      const pesan = pesanError(err, 'biasa')
+      setAntreanError(pesan === teks.gagalUmum ? teks.gagalAksi : pesan)
+    } finally {
+      setAksiAntrean(null)
+    }
+  }
 
   async function masukDengan(body: LoginRequest) {
     if (sedangMasuk.current) return
@@ -922,11 +1272,18 @@ export default function App() {
               onClick={() => setHalaman('meja')}
             />
             {owner && (
-              <NavItem
-                aktif={halaman === 'menu'}
-                label={teks.navMenu}
-                onClick={() => setHalaman('menu')}
-              />
+              <>
+                <NavItem
+                  aktif={halaman === 'menu'}
+                  label={teks.navMenu}
+                  onClick={() => setHalaman('menu')}
+                />
+                <NavItem
+                  aktif={halaman === 'qr'}
+                  label={teks.navQR}
+                  onClick={() => setHalaman('qr')}
+                />
+              </>
             )}
           </div>
           <div className="mt-auto rounded-md border border-line bg-surface p-3.5 shadow-1">
@@ -945,11 +1302,18 @@ export default function App() {
               onClick={() => setHalaman('meja')}
             />
             {owner && (
-              <NavItem
-                aktif={halaman === 'menu'}
-                label={teks.navMenu}
-                onClick={() => setHalaman('menu')}
-              />
+              <>
+                <NavItem
+                  aktif={halaman === 'menu'}
+                  label={teks.navMenu}
+                  onClick={() => setHalaman('menu')}
+                />
+                <NavItem
+                  aktif={halaman === 'qr'}
+                  label={teks.navQR}
+                  onClick={() => setHalaman('qr')}
+                />
+              </>
             )}
           </div>
 
@@ -981,6 +1345,15 @@ export default function App() {
 
                 {mejaError && <ErrorBanner pesan={mejaError} onRetry={muatMeja} />}
 
+                <PesananBaruSection
+                  antrean={antrean}
+                  loading={antrean === null}
+                  error={antreanError}
+                  onRetry={muatAntrean}
+                  onAksi={(pesanan) => void aksiPesanan(pesanan)}
+                  working={aksiAntrean}
+                />
+
                 {mejaLoading && !meja ? (
                   <SkeletonMeja />
                 ) : meja && meja.length > 0 ? (
@@ -1010,6 +1383,8 @@ export default function App() {
                 <DetailMejaCard meja={mejaTerpilih} />
               </aside>
             </div>
+          ) : halaman === 'qr' ? (
+            <QrPage daftarMeja={meja} />
           ) : (
             <div className="min-w-0">
               <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

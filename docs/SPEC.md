@@ -3,11 +3,11 @@
 > POS open source untuk UMKM F&B Indonesia. Berjalan di komputer kasir sendiri,
 > tanpa VPS, tanpa langganan. Pelanggan memesan lewat QR di meja.
 
-Status: Milestone 1 dibangun (API + basis data + autentikasi + meja + menu + demo).
+Status: Milestone 2 dibangun (alur pemesanan pelanggan lewat QR + antrean kasir).
 Lisensi: AGPL-3.0. Pembuat: @MarchAja.
 
-> Catatan pelaksanaan: keputusan 63–66 di bawah mencatat penyesuaian saat
-> implementasi Milestone 1 dan watermark mockup.
+> Catatan pelaksanaan: keputusan 63–66 mencatat penyesuaian Milestone 1 dan
+> watermark mockup; 67–73 mencatat keputusan implementasi Milestone 2.
 
 ---
 
@@ -408,3 +408,10 @@ Milestone 3 adalah titik layak pakai. Pembayaran otomatis bukan syarat operasi.
 | 64 | Build M1 memakai npm workspaces: `apps/server` dan `apps/web` |
 | 65 | Kontrak API didefinisikan lokal per workspace, tanpa paket `shared` |
 | 66 | Kredensial demo: PIN kasir `123456`, kata sandi pemilik `owner123`, dapat diubah lewat env |
+| 67 | QR meja mengarah ke `/m/<token>`; halaman pelanggan tanpa login |
+| 68 | Kunjungan dibuka saat pesanan pertama dikirim; pesanan berikutnya masuk tagihan yang sama |
+| 69 | Baris tagihan dibuat saat kasir menerima pesanan pertama, bukan saat pesanan dikirim |
+| 70 | Validasi addon (grup terkait, wajib/min/max, habis) dilakukan di server, bukan hanya UI |
+| 71 | Nama dan harga addon disalin ke `item_addon` sebagai snapshot |
+| 72 | Antrean kasir dan halaman status pelanggan memakai polling 3 detik |
+| 73 | QR dicetak dari panel pemilik memakai `qrcode`; URL dihasilkan dari asal halaman + token meja |

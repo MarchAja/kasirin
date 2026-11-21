@@ -1,5 +1,8 @@
 import type {
   HealthResponse,
+  InfoMejaResponse,
+  KirimPesananRequest,
+  KirimPesananResponse,
   LoginRequest,
   LoginResponse,
   MejaResponse,
@@ -7,6 +10,9 @@ import type {
   MenuResponse,
   PatchMenuRequest,
   PatchMenuResponse,
+  PesananPublik,
+  StatusResponse,
+  AntreanResponse,
 } from './types'
 
 export const TOKEN_KEY = 'kasirin.token'
@@ -126,4 +132,46 @@ export function patchMenu(
 
 export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health', {}, false)
+}
+
+// ---------------------------------------------------------------------------
+// Milestone 2 — endpoint pelanggan (tanpa token) & antrean kasir
+// ---------------------------------------------------------------------------
+
+export function getInfoMeja(token: string): Promise<InfoMejaResponse> {
+  return request<InfoMejaResponse>(`/m/${token}`, {}, false)
+}
+
+export function getMenuPelanggan(token: string): Promise<MenuResponse> {
+  return request<MenuResponse>(`/m/${token}/menu`, {}, false)
+}
+
+export function getStatusMeja(token: string): Promise<StatusResponse> {
+  return request<StatusResponse>(`/m/${token}/status`, {}, false)
+}
+
+export function kirimPesanan(
+  token: string,
+  body: KirimPesananRequest,
+): Promise<KirimPesananResponse> {
+  return request<KirimPesananResponse>(`/m/${token}/orders`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }, false)
+}
+
+export function getAntrean(): Promise<AntreanResponse> {
+  return request<AntreanResponse>('/orders/baru')
+}
+
+export function terimaPesanan(id: number): Promise<{ pesanan: PesananPublik }> {
+  return request<{ pesanan: PesananPublik }>(`/orders/${id}/accept`, {
+    method: 'POST',
+  })
+}
+
+export function sajikanPesanan(id: number): Promise<{ pesanan: PesananPublik }> {
+  return request<{ pesanan: PesananPublik }>(`/orders/${id}/serve`, {
+    method: 'POST',
+  })
 }

@@ -188,5 +188,18 @@ Screenshot: `docs/mockups/kasir.png` (PC 1440×900),
 `kasir-tablet-portrait.png` (tablet potret 820×1180), `menu.png`, `addon.png`.
 Foto contoh: Unsplash, lihat `prototype/CREDITS.md`.
 
+Screenshot hasil implementasi Milestone 2:
+`docs/mockups/kasir-m2.png`, `pelanggan-menu.png`, `pelanggan-addon.png`,
+`pelanggan-status.png`.
+
+### Halaman status pelanggan (M2)
+
+- Dibuka otomatis saat QR meja dibuka dan kunjungan masih aktif; tombol
+  **Tambah pesanan** kembali ke menu dan tetap masuk tagihan yang sama.
+- Total tagihan diambil dari server dan diperbarui tiap 3 detik, bersama status
+  tiap pesanan (`baru`, `diterima`, `disajikan`).
+- Addon tampil sebagai baris menjorok di bawah item, sesuai aturan snapshot.
+- Halaman status tidak menampilkan pembayaran; itu masuk Milestone 3.
+
 Prototipe adalah acuan visual. Implementasi React memakai token dan pola yang
 sama, bukan menyalin HTML-nya.

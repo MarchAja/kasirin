@@ -10,7 +10,9 @@ import { migrate } from "./db/migrate.js";
 import { seedDemo } from "./db/seed.js";
 import { HttpError } from "./http.js";
 import { registerAuth } from "./routes/auth.js";
+import { registerCustomer } from "./routes/customer.js";
 import { registerMenu } from "./routes/menu.js";
+import { registerOrders } from "./routes/orders.js";
 import { registerTables } from "./routes/tables.js";
 
 export interface AppOptions {
@@ -49,6 +51,8 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
   registerAuth(app, db);
   registerTables(app, db);
   registerMenu(app, db);
+  registerCustomer(app, db);
+  registerOrders(app, db);
 
   if (fs.existsSync(uploadDir)) {
     await app.register(fastifyStatic, {

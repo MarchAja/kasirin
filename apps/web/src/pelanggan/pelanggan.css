@@ -1,0 +1,71 @@
+/* Animasi native <dialog> — masuk/keluar tanpa JavaScript animasi. */
+.pelanggan-dialog {
+  margin-block: 0;
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+
+.pelanggan-dialog[open] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@starting-style {
+  .pelanggan-dialog[open] {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+.pelanggan-dialog::backdrop {
+  background-color: rgba(27, 25, 23, 0.42);
+  opacity: 0;
+  transition:
+    opacity 200ms ease,
+    overlay 200ms allow-discrete;
+}
+
+.pelanggan-dialog[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .pelanggan-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pelanggan-dialog,
+  .pelanggan-dialog::backdrop {
+    transition: none !important;
+  }
+
+  .pelanggan-dialog {
+    transform: none;
+  }
+}
+
+/* Rail favorit: scroll native + snap, tanpa bilah gulir. */
+.rail-favorit {
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.rail-favorit::-webkit-scrollbar {
+  display: none;
+}
+
+.rail-favorit > * {
+  scroll-snap-align: start;
+}
+
+.sheet-scroll {
+  overscroll-behavior: contain;
+}

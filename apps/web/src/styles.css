@@ -96,3 +96,44 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Cetak semua QR meja dalam satu lembar A4, tiga kolom. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .qr-sheet,
+  .qr-sheet * {
+    visibility: visible !important;
+  }
+
+  .qr-sheet {
+    position: absolute !important;
+    inset: 0 0 auto 0;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10mm;
+  }
+
+  .qr-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  .qr-card img {
+    width: 100%;
+    max-width: 42mm;
+    height: auto;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

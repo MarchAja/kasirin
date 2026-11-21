@@ -21,9 +21,10 @@ docs/         SPEC.md, DESIGN.md, IDEAS.md, mockups/
 prototype/    Mockup HTML statis (acuan visual, bukan kode produksi)
 ```
 
-Milestone 1 sudah membangun `apps/server` dan `apps/web`. Tipe kontrak API
-disimpan lokal di masing-masing workspace (`apps/web/src/types.ts`) agar
-keduanya bisa dibangun tanpa urutan build tambahan.
+Milestone 2 sudah membangun `apps/server` dan `apps/web`: fondasi (M1) plus
+alur pelanggan lewat QR, addon, keranjang, halaman status, dan antrean kasir.
+Tipe kontrak API disimpan lokal di `apps/web/src/types.ts` agar kedua workspace
+bisa dibangun tanpa urutan build tambahan.
 
 ## Perintah
 

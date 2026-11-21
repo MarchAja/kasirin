@@ -4,8 +4,9 @@ POS open source untuk UMKM F&B Indonesia. Pelanggan memesan lewat QR di meja,
 kasir mengelola pesanan dan tagihan, semuanya berjalan di komputer kasir sendiri
 — tanpa VPS, tanpa langganan.
 
-Lisensi: AGPL-3.0. Status: **Milestone 1** — fondasi API, basis data, autentikasi,
-meja, menu, dan mode demo sudah bisa dijalankan.
+Lisensi: AGPL-3.0. Status: **Milestone 2** — alur pelanggan lewat QR (menu,
+keranjang, addon, kirim pesanan, halaman status) dan antrean kasir sudah bisa
+dijalankan.
 
 Dibuat oleh [@MarchAja](https://github.com/MarchAja) · Open Source · AGPL-3.0.
 
@@ -48,7 +49,14 @@ Screenshot ada di `docs/mockups/`:
 - `kasir.png` — PC 1440×900
 - `kasir-tablet.png` — tablet lanskap 1024×768
 - `kasir-tablet-portrait.png` — tablet potret 820×1180
-- `menu.png`, `addon.png` — layar pelanggan
+- `menu.png`, `addon.png` — mockup layar pelanggan
+
+Screenshot aplikasi Milestone 2 (bukan mockup):
+
+- `kasir-m2.png` — antrean pesanan, status meja, dan tagihan berjalan
+- `pelanggan-menu.png` — menu pelanggan lewat QR
+- `pelanggan-addon.png` — sheet addon native
+- `pelanggan-status.png` — halaman status dengan total tagihan
 
 Layar kasir responsif: ubah lebar jendela di browser untuk melihat ketiga tata
 letak. Foto contoh memakai Unsplash (lihat `prototype/CREDITS.md`) dan hanya
@@ -96,6 +104,19 @@ npm run start:prod
 
 Lalu buka http://localhost:3000 — server menyajikan API sekaligus berkas web
 yang sudah di-build.
+
+## Alur Milestone 2
+
+1. Masuk sebagai **pemilik**, buka **Meja & QR**, lalu cetak QR meja.
+2. Pindai QR (atau buka langsung `http://localhost:5173/m/<token-meja>`).
+3. Pilih menu, atur addon dan jumlah, lalu kirim pesanan.
+4. Halaman status pelanggan memperbarui sendiri tiap 3 detik.
+5. Di layar kasir, pesanan muncul di **Pesanan baru** → tombol **Terima**, lalu
+   **Disajikan**. Satu tagihan per kunjungan meja otomatis bertambah bila
+   pelanggan memesan lagi sebelum meja ditutup.
+
+Tagihan dibuka saat kasir menerima pesanan pertama. Pembayaran dan penutupan
+meja masuk Milestone 3.
 
 ## Perintah pengembang
 

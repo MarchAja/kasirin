@@ -43,8 +43,9 @@ export const teks = {
   navigasi: 'Navigasi',
   navMeja: 'Meja',
   navMenu: 'Menu',
-  milestone: 'Milestone 1',
-  milestoneCatatan: 'Papan meja & kelola menu',
+  navQR: 'Meja & QR',
+  milestone: 'Milestone 2',
+  milestoneCatatan: 'Pesanan pelanggan lewat QR',
 
   // Papan meja
   papanMeja: 'Papan meja',
@@ -61,10 +62,44 @@ export const teks = {
   belumTransaksi: 'Belum ada transaksi tercatat hari ini.',
   aktivitas: 'Aktivitas 7 hari terakhir · data contoh',
   belumPesanan: 'Belum ada pesanan',
-  milestone2: 'Milestone 2 akan mengisi ini.',
+  belumPesananSub: 'Pesanan lewat QR akan muncul di sini.',
   pilihMeja: 'Pilih meja',
   pilihMejaSub: 'Ketuk salah satu meja untuk melihat detailnya.',
   gagalMeja: 'Gagal memuat data meja.',
+
+  // Status meja (tint + titik)
+  statusKosong: 'Kosong',
+  statusBaru: 'Baru',
+  statusDiterima: 'Diterima',
+  statusDisajikan: 'Disajikan',
+  statusPerluDicek: 'Perlu dicek',
+  statusDitutup: 'Ditutup',
+  statusDibatalkan: 'Dibatalkan',
+  kunjunganAktif: 'Kunjungan aktif',
+  tagihanBerjalan: 'Tagihan berjalan',
+
+  // Antrean pesanan kasir
+  pesananBaru: 'Pesanan baru',
+  menunggu: 'menunggu',
+  antreanKosong: 'Belum ada pesanan masuk.',
+  antreanKosongSub: 'Pesanan dari QR meja akan muncul di sini.',
+  terima: 'Terima',
+  sajikan: 'Disajikan',
+  memproses: 'Memproses…',
+  gagalAntrean: 'Gagal memuat antrean pesanan.',
+  gagalAksi: 'Gagal memproses pesanan. Coba lagi.',
+  baruSaja: 'baru saja',
+  menitLalu: 'mnt lalu',
+  jamLalu: 'jam lalu',
+
+  // Meja & QR
+  qrJudul: 'Meja & QR',
+  qrSub: 'Cetak semua QR untuk ditempel di meja.',
+  qrCetak: 'Cetak QR',
+  qrMemuat: 'Membuat QR…',
+  qrGagal: 'Gagal membuat QR meja.',
+  qrKosong: 'Belum ada meja.',
+  qrPindai: 'Pindai untuk memesan',
 
   // Kelola menu
   kelolaMenu: 'Kelola menu',
@@ -81,4 +116,58 @@ export const teks = {
   menuKosong: 'Menu masih kosong',
   menuKosongSub: 'Tambahkan menu agar pelanggan bisa memesan.',
   gagalMenu: 'Gagal memuat data menu.',
+
+  // Halaman pelanggan —.menu
+  buka: 'Buka',
+  makanDiTempat: 'makan di tempat',
+  pelangganCari: 'Cari menu, mis. nasi goreng',
+  favoritHariIni: 'Favorit hari ini',
+  pilihanCount: 'pilihan',
+  semua: 'Semua',
+  semuaMenu: 'Semua menu',
+  palingLaris: 'Paling laris',
+  pilih: 'Pilih',
+  keranjang: 'Keranjang',
+  lihatSemua: 'Lihat semua',
+  menuPelangganKosong: 'Menu belum tersedia',
+  menuPelangganKosongSub: 'Coba lagi sebentar.',
+  cariKosong: 'Menu tidak ditemukan',
+  cariKosongSub: 'Coba kata kunci lain.',
+
+  // Sheet addon
+  tutup: 'Tutup',
+  grupOpsional: '(opsional)',
+  grupPilihSatu: '(pilih satu)',
+  grupPilihBeberapa: '(pilih {n})',
+  grupWajib: '(wajib)',
+  tanpaTambahan: 'Tanpa tambahan',
+  catatanPlaceholder: 'Catatan · mis. tanpa bawang',
+  jumlah: 'Jumlah',
+  tambah: 'Tambah',
+  kurangiJumlah: 'Kurangi jumlah',
+  tambahJumlah: 'Tambah jumlah',
+
+  // Keranjang
+  keranjangKosong: 'Keranjang masih kosong',
+  keranjangKosongSub: 'Tambahkan menu dari daftar.',
+  hapus: 'Hapus',
+  kirimPesanan: 'Kirim pesanan',
+  mengirim: 'Mengirim…',
+  gagalKirim: 'Pesanan gagal dikirim. Coba lagi.',
+
+  // Status pesanan pelanggan
+  menungguKasir: 'Menunggu diterima kasir',
+  pesananAnda: 'Pesanan Anda',
+  statusKosongPesanan: 'Belum ada pesanan',
+  statusKosongSub: 'Pesan dari menu, lalu statusnya tampil di sini.',
+  totalTagihan: 'Total tagihan',
+  tambahPesanan: 'Tambah pesanan',
+  dibukaPada: 'Dibuka pukul',
+  memuatStatus: 'Memuat status pesanan…',
+
+  // Halaman pelanggan — kesalahan
+  qrTidakValid: 'QR meja tidak valid',
+  qrTidakValidSub: 'Pastikan Anda memindai QR yang ditempel di meja.',
+  gagalMuatPelanggan: 'Gagal memuat halaman. Coba lagi.',
+  gagalMuatStatus: 'Gagal memuat status pesanan. Coba lagi.',
 } as const
