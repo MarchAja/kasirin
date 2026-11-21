@@ -60,16 +60,20 @@ akan menghentikan server.
 > `KasirIn-windows.zip`. Skrip NSIS tetap ada di repo dan bisa dipakai untuk
 > membangun installer secara lokal, tetapi berkasnya belum dipublikasikan.
 
-1. Unduh `KasirIn-windows.zip` dari
+1. Pasang prasyarat: **Node.js 22+**, **Visual Studio Build Tools** dengan
+   workload *Desktop development with C++*, dan **Python 3.11+** di PATH.
+   Detail dan tautan unduh ada di
+   [README bagian instalasi manual](../README.md#1-pasang-prasyarat-sekali-saja).
+2. Unduh `KasirIn-windows.zip` dari
    https://github.com/MarchAja/kasirin/releases/latest
-2. Ekstrak ke folder, misalnya `C:\KasirIn`.
-3. Jalankan `run.cmd` di folder tersebut.
-4. Buka http://localhost:3000 di browser.
+3. Ekstrak ke folder, misalnya `C:\KasirIn`.
+4. Buka **Command Prompt** di folder itu dan jalankan `npm ci` sekali. Perintah
+   ini mengunduh paket sesuai `package-lock.json` dan menyusun `better-sqlite3`.
+5. Jalankan `run.cmd`, lalu buka http://localhost:3000 di browser.
 
-ZIP sudah **menyertakan `node_modules`** hasil build di Windows, sehingga tidak
-perlu `npm ci` dan tidak perlu Visual Studio Build Tools di komputer kasir.
-Satu-satunya prasyarat adalah **Node.js 22+** terpasang. `run.cmd` otomatis
-mengarahkan data ke `%LOCALAPPDATA%\KasirIn\data`.
+ZIP **tidak** menyertakan `node_modules`, sehingga `npm ci` wajib dijalankan sekali
+di komputer kasir. Setelah itu KasirIn bisa dipakai tanpa internet. `run.cmd`
+otomatis mengarahkan data ke `%LOCALAPPDATA%\KasirIn\data`.
 
 Alur singkat pemakaian harian:
 

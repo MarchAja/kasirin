@@ -81,9 +81,8 @@ try {
         @{ Dari = 'apps/web/dist';     Ke = 'apps/web/dist' },
         @{ Dari = 'package.json';      Ke = 'package.json' },
         @{ Dari = 'package-lock.json'; Ke = 'package-lock.json' },
-        # node_modules disertakan agar pengguna tidak perlu npm ci / Visual
-        # Studio Build Tools untuk menyusun better-sqlite3 di komputernya.
-        @{ Dari = 'node_modules';      Ke = 'node_modules' },
+        # node_modules sengaja tidak dibundel. Pengguna menjalankan npm ci sekali
+        # di komputernya; panduan ada di README dan docs/DEPLOYMENT.md.
         @{ Dari = 'start.bat';         Ke = 'start.bat' },
         @{ Dari = 'LICENSE';           Ke = 'LICENSE' },
         @{ Dari = 'README.md';         Ke = 'README.md' },

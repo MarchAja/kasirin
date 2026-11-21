@@ -57,9 +57,8 @@ jobs:
           body: |
             Paket KasirIn untuk Windows (${{ github.ref_name }}).
 
-            - `KasirIn-windows.zip` — versi portabel berisi `node_modules`.
-              Ekstrak lalu jalankan `run.cmd`; tidak perlu `npm ci` atau Visual
-              Studio Build Tools. Cukup Node.js 22+ terpasang. Panduan ada di bawah.
+            - `KasirIn-windows.zip` — versi portabel. Ekstrak, jalankan `npm ci`
+              sekali, lalu jalankan `run.cmd`. Panduan lengkap ada di bawah.
 
             **Installer `.exe` — coming soon.** Untuk sementara gunakan ZIP dan
             ikuti panduan instalasi manual:

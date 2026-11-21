@@ -85,26 +85,51 @@ coming soon.**
 
 ## Instalasi manual (Windows)
 
-> Belum ada installer `.exe`. Gunakan ZIP portabel dari halaman rilis atau
-> jalankan langsung dari sumber. Keduanya membutuhkan **Node.js 22 atau lebih
-> baru** terpasang di komputer (https://nodejs.org/).
+> **Installer `.exe` — coming soon.** Untuk sementara, pasang dari ZIP portabel
+> atau langsung dari sumber. Setelah terpasang, KasirIn berjalan offline penuh.
 
-### Dari ZIP rilis (paling mudah)
+### 1. Pasang prasyarat (sekali saja)
+
+| Kebutuhan | Kenapa | Cara |
+|---|---|---|
+| **Node.js 22 atau lebih baru** | Menjalankan server KasirIn | Unduh MSI dari https://nodejs.org/, instal dengan opsi default. Cek: `node --version` |
+| **Visual Studio Build Tools** + workload *Desktop development with C++* | Menyusun modul SQLite (`better-sqlite3`) saat `npm ci` | Unduh "Visual Studio Build Tools" dari https://visualstudio.microsoft.com/downloads/, saat instalasi centang workload **Desktop development with C++** |
+| **Python 3.11+** | Dibutuhkan `node-gyp` | Unduh dari https://www.python.org/downloads/, centang **Add Python to PATH** saat instalasi |
+| **Koneksi internet** | Hanya saat `npm ci` mengunduh paket | Setelah itu tidak diperlukan |
+
+### 2. Dari ZIP rilis
 
 1. Unduh `KasirIn-windows.zip` dari
    https://github.com/MarchAja/kasirin/releases/latest
 2. Ekstrak ke folder, misalnya `C:\KasirIn`.
-3. Klik dua kali `run.cmd` (atau jalankan dari Command Prompt di folder itu).
-   `node_modules` sudah ikut di dalam ZIP, jadi **tidak perlu** `npm ci` dan
-   tidak perlu Visual Studio Build Tools.
-4. Buka http://localhost:3000 di browser.
-5. Masuk dengan PIN kasir `123456` atau kata sandi pemilik `owner123`
+3. Buka **Command Prompt** di folder tersebut, lalu jalankan:
+
+   ```bat
+   npm ci
+   ```
+
+   Perintah ini membaca `package-lock.json`, mengunduh semua paket dengan versi
+   yang persis sama, dan menyusun `better-sqlite3`. Biasanya memakan waktu
+   beberapa menit. ZIP **tidak** menyertakan `node_modules`, jadi langkah ini
+   wajib dilakukan sekali di komputer kasir.
+
+   Bila muncul error `Could not find any Visual Studio installation to use`,
+   pasang Visual Studio Build Tools seperti di tabel prasyarat lalu ulangi
+   `npm ci`.
+
+4. Jalankan aplikasi:
+
+   ```bat
+   run.cmd
+   ```
+
+5. Buka http://localhost:3000 di browser. Biarkan jendela Command Prompt tetap
+   terbuka selama KasirIn dipakai; menutupnya akan menghentikan server.
+
+6. Masuk dengan PIN kasir `123456` atau kata sandi pemilik `owner123`
    (PIN diskon pemilik: `246810`).
 
-Data tersimpan di `%LOCALAPPDATA%\KasirIn\data`. Untuk memindahkannya, set
-`KASIRIN_DATA_DIR` sebelum menjalankan `run.cmd`. Port bisa diubah lewat `PORT`.
-
-### Dari sumber
+### 3. Dari sumber
 
 ```bat
 npm ci
@@ -112,9 +137,15 @@ npm run build
 start.bat
 ```
 
-Lalu buka http://localhost:3000. Karena `better-sqlite3` dikompilasi saat
-instalasi, mode ini membutuhkan Node.js 22+ **dan** Visual Studio Build Tools
-dengan workload *Desktop development with C++*.
+Kebutuhannya sama dengan ZIP (Node.js 22+, Build Tools, Python), plus Git untuk
+mengunduh sumber. Buka http://localhost:3000 setelahnya.
+
+### 4. Data dan pengaturan
+
+Data tersimpan di `%LOCALAPPDATA%\KasirIn\data` (SQLite, foto, dan cadangan).
+`run.cmd`/`start.bat` otomatis mengatur lokasi ini. Untuk memindahkannya, set
+`KASIRIN_DATA_DIR` sebelum menjalankan. Port default `3000` bisa diubah lewat
+`PORT`; salin `.env.example` menjadi `.env` untuk menyimpan pengaturan.
 
 Panduan lengkap (firewall, ngrok, cadangan, pemulihan):
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
