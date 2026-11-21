@@ -29,6 +29,14 @@ jobs:
       - name: Siapkan alat C++ (node-gyp)
         uses: ilammy/msvc-dev-cmd@v1
 
+      # node-gyp 11 bawaan Node 22 belum mendeteksi Visual Studio 2026 (v18).
+      # node-gyp >= 12.1 sudah mendukungnya; arahkan npm ke versi tersebut.
+      - name: Pasang node-gyp 13 untuk Visual Studio 2026
+        run: |
+          npm install -g node-gyp@13
+          $nodeGyp = (npm root -g) + "\node-gyp\bin\node-gyp.js"
+          "npm_config_node_gyp=$nodeGyp" >> $env:GITHUB_ENV
+
       - name: Pasang dependensi
         run: npm ci
 
