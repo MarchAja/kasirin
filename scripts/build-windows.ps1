@@ -138,14 +138,18 @@ pause
     Selesai "ZIP dibuat: $ZipPath"
 
     # === 6. Installer NSIS (opsional) ===
-    if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
-        Peringatan 'makensis (NSIS) tidak ditemukan di PATH — installer .exe dilewati (opsional).'
+    $makensis = Get-Command makensis -ErrorAction SilentlyContinue
+    if (-not $makensis -and (Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) {
+        $makensis = 'C:\Program Files (x86)\NSIS\makensis.exe'
+    }
+    if (-not $makensis) {
+        Peringatan 'makensis (NSIS) tidak ditemukan — installer .exe dilewati (opsional).'
         Peringatan 'Pasang NSIS dari https://nsis.sourceforge.io/ lalu jalankan ulang skrip ini untuk membuat installer.'
     } else {
         Info 'Membuat installer NSIS (KasirIn-Setup.exe) ...'
         Push-Location $RepoRoot
         try {
-            & makensis installer/kasirin.nsi
+            & $makensis installer/kasirin.nsi
             if ($LASTEXITCODE -ne 0) { Gagal 'makensis gagal membuat installer. Periksa keluaran di atas.' }
         } finally {
             Pop-Location
