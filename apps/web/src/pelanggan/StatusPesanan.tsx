@@ -48,6 +48,26 @@ function labelStatus(status: Status): string {
   }
 }
 
+/** Status tagihan yang perlu diketahui pelanggan setelah pesanan disajikan. */
+function infoTagihan(
+  status: string | null,
+): { tone: Tone; label: string; catatan: string | null } | null {
+  switch (status) {
+    case 'lunas':
+      return {
+        tone: 'hijau',
+        label: teks.statusLunas,
+        catatan: teks.statusLunasCatatan,
+      }
+    case 'perlu_dicek':
+      return { tone: 'kuning', label: teks.statusMenungguCek, catatan: null }
+    case 'ditutup':
+      return { tone: 'netral', label: teks.statusSelesai, catatan: null }
+    default:
+      return null
+  }
+}
+
 function jamDibuat(iso: string): string {
   const tanggal = new Date(iso)
   return Number.isNaN(tanggal.getTime()) ? '' : formatJam(tanggal)
@@ -99,6 +119,7 @@ export function StatusPesanan({ token, onTambahPesanan }: Props) {
       0,
     ) ?? 0
   const total = status?.tagihan?.total ?? totalDariItem
+  const infoTagihanStatus = infoTagihan(status?.tagihan?.status ?? null)
 
   return (
     <div className="space-y-4">
@@ -131,15 +152,33 @@ export function StatusPesanan({ token, onTambahPesanan }: Props) {
               {formatRupiah(total)}
             </p>
           </div>
-          {status && (
-            <span className="rounded-full bg-paper-2 px-3 py-1.5 text-[12px] font-semibold tabular-nums text-muted">
-              {teks.mejaJudul} {formatNomorMeja(status.meja.nomor)}
-            </span>
-          )}
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {status && (
+              <span className="rounded-full bg-paper-2 px-3 py-1.5 text-[12px] font-semibold tabular-nums text-muted">
+                {teks.mejaJudul} {formatNomorMeja(status.meja.nomor)}
+              </span>
+            )}
+            {infoTagihanStatus && (
+              <span
+                className={`inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-semibold ${PIL_TONE[infoTagihanStatus.tone]}`}
+              >
+                <span
+                  className={`h-[7px] w-[7px] rounded-full ${DOT_TONE[infoTagihanStatus.tone]}`}
+                  aria-hidden="true"
+                />
+                {infoTagihanStatus.label}
+              </span>
+            )}
+          </div>
         </div>
         {status?.dibuka_pada && (
           <p className="mt-3 border-t border-line pt-3 text-[11.5px] text-muted">
             {teks.kunjunganAktif} · {teks.dibukaPada} {jamDibuat(status.dibuka_pada)}
+          </p>
+        )}
+        {infoTagihanStatus?.catatan && (
+          <p className="mt-1 text-[11.5px] text-muted">
+            {infoTagihanStatus.catatan}
           </p>
         )}
       </section>

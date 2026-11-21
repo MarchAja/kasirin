@@ -103,22 +103,23 @@ export function hitungSubtotal(db: Db, kunjunganId: number): number {
 /** Menyesuaikan subtotal/total tagihan setelah ada pesanan baru. */
 export function sinkronisasiTagihan(db: Db, kunjunganId: number): void {
   const tagihan = db
-    .prepare("SELECT id, diskon, pajak, service FROM tagihan WHERE kunjungan_id = ?")
-    .get(kunjunganId) as
-    | { id: number; diskon: number; pajak: number; service: number }
-    | undefined;
+    .prepare("SELECT id, diskon FROM tagihan WHERE kunjungan_id = ?")
+    .get(kunjunganId) as { id: number; diskon: number } | undefined;
   if (!tagihan) return;
 
+  const pengaturan = db
+    .prepare("SELECT pajak_persen, service_persen FROM outlet WHERE id = 1")
+    .get() as { pajak_persen: number; service_persen: number } | undefined;
+  const pajakPersen = pengaturan?.pajak_persen ?? 0;
+  const servicePersen = pengaturan?.service_persen ?? 0;
+
   const subtotal = hitungSubtotal(db, kunjunganId);
-  const total = Math.max(
-    0,
-    subtotal - tagihan.diskon + tagihan.pajak + tagihan.service,
-  );
-  db.prepare("UPDATE tagihan SET subtotal = ?, total = ? WHERE id = ?").run(
-    subtotal,
-    total,
-    tagihan.id,
-  );
+  const pajak = Math.round((subtotal * pajakPersen) / 100);
+  const service = Math.round((subtotal * servicePersen) / 100);
+  const total = Math.max(0, subtotal - tagihan.diskon + pajak + service);
+  db.prepare(
+    "UPDATE tagihan SET subtotal = ?, pajak = ?, service = ?, total = ? WHERE id = ?",
+  ).run(subtotal, pajak, service, total, tagihan.id);
 }
 
 export function pastikanTagihan(db: Db, kunjunganId: number): number {

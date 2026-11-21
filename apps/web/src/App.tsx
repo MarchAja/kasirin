@@ -3,40 +3,57 @@ import type { FormEvent, ReactNode } from 'react'
 import QRCode from 'qrcode'
 import {
   ApiError,
+  bayarTagihan,
+  beriDiskon,
   clearToken,
   getAntrean,
   getHealth,
   getMe,
   getMenu,
+  getPengaturan,
+  getRingkasanHarian,
+  getTagihanMeja,
   getToken,
   getTables,
+  konfirmasiPembayaran,
   login,
   onUnauthorized,
   patchMenu,
   sajikanPesanan,
   setToken,
   terimaPesanan,
+  tutupKunjungan,
+  updatePengaturan,
 } from './api'
 import { formatJam, formatNomorMeja, formatRupiah, urlFoto } from './format'
 import Pelanggan from './pelanggan/Pelanggan'
 import { teks } from './teks'
 import type {
+  BayarRequest,
+  DiskonRequest,
   GrupAddon,
   LoginRequest,
   Meja,
   MenuItem,
   MenuResponse,
+  MetodeBayar,
   PatchMenuRequest,
+  PengaturanResponse,
   Pengguna,
   PesananAntrean,
+  RingkasanHarian,
   StatusMeja,
   StatusPesanan,
+  StatusTagihan,
+  TagihanDetail,
+  UpdatePengaturanRequest,
 } from './types'
 
 type Tone = 'netral' | 'akcen' | 'hijau' | 'kuning' | 'biru' | 'merah'
 type Mode = 'kasir' | 'owner'
-type Halaman = 'meja' | 'menu' | 'qr'
+type Halaman = 'meja' | 'menu' | 'qr' | 'ringkasan' | 'pengaturan'
 type FieldMenu = 'habis' | 'aktif'
+type DialogAksi = 'bayar' | 'diskon' | 'konfirmasi' | 'tutup' | null
 
 interface Sesi {
   token: string
@@ -77,8 +94,36 @@ const LABEL_STATUS_MEJA: Record<StatusMeja, string> = {
   perlu_dicek: teks.statusPerluDicek,
 }
 
+const STATUS_TAGIHAN_TONE: Record<StatusTagihan, Tone> = {
+  buka: 'netral',
+  tertunda: 'kuning',
+  lunas: 'hijau',
+  perlu_dicek: 'merah',
+  ditutup: 'netral',
+}
+
+const LABEL_STATUS_TAGIHAN: Record<StatusTagihan, string> = {
+  buka: teks.statusBuka,
+  tertunda: teks.statusTertunda,
+  lunas: teks.statusLunas,
+  perlu_dicek: teks.statusPerluDicek,
+  ditutup: teks.statusDitutup,
+}
+
 const TOMBOL_PRIMER =
   'inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-[14px] font-semibold text-white shadow-2 transition-all duration-150 hover:bg-accent-2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50'
+
+const TOMBOL_AKSI_PRIMER =
+  'inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent text-[12.5px] font-semibold text-white shadow-1 transition-all duration-150 hover:bg-accent-2 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50'
+
+const TOMBOL_SEKUNDER =
+  'inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 text-[12.5px] font-semibold text-muted transition-all duration-150 hover:border-accent hover:text-accent active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50'
+
+/** Jam lokal dari ISO, atau string kosong bila tanggal tidak valid. */
+function jamDibuat(iso: string): string {
+  const tanggal = new Date(iso)
+  return Number.isNaN(tanggal.getTime()) ? '' : formatJam(tanggal)
+}
 
 /** Waktu relatif singkat untuk kartu antrean, cth: "2 mnt lalu". */
 function waktuRelatif(iso: string): string {
@@ -325,7 +370,74 @@ function TableTile({
   )
 }
 
-function DetailMejaCard({ meja }: { meja?: Meja }) {
+function BarisTotal({
+  label,
+  nilai,
+  negatif = false,
+  besar = false,
+  catatan,
+}: {
+  label: string
+  nilai: number
+  negatif?: boolean
+  besar?: boolean
+  catatan?: string | null
+}) {
+  return (
+    <div>
+      <div
+        className={`flex items-baseline justify-between gap-3 ${
+          besar ? 'border-t border-line pt-3' : ''
+        }`}
+      >
+        <span
+          className={besar ? 'text-[13px] font-bold text-ink' : 'text-[12px] text-muted'}
+        >
+          {label}
+        </span>
+        <span
+          className={`tabular-nums ${
+            besar
+              ? 'text-[24px] font-bold leading-none text-ink'
+              : 'text-[12.5px] font-semibold text-ink'
+          }`}
+        >
+          {negatif && nilai > 0 ? '−' : ''}
+          {formatRupiah(nilai)}
+        </span>
+      </div>
+      {catatan && (
+        <p className="mt-0.5 text-right text-[11px] italic leading-tight text-muted">
+          {catatan}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function DetailMejaCard({
+  meja,
+  tagihan,
+  tagihanLoading,
+  tagihanError,
+  onMuatUlang,
+  onBayar,
+  onDiskon,
+  onKonfirmasi,
+  onTutup,
+  aksiBerjalan,
+}: {
+  meja?: Meja
+  tagihan: TagihanDetail | null
+  tagihanLoading: boolean
+  tagihanError: string | null
+  onMuatUlang: () => void
+  onBayar: () => void
+  onDiskon: () => void
+  onKonfirmasi: () => void
+  onTutup: () => void
+  aksiBerjalan: boolean
+}) {
   if (!meja) {
     return (
       <div className="rounded-lg border border-line bg-surface p-5 shadow-2">
@@ -338,6 +450,7 @@ function DetailMejaCard({ meja }: { meja?: Meja }) {
   }
 
   const tone = meja.aktif ? STATUS_MEJA_TONE[meja.status] : 'merah'
+  const ditutup = tagihan?.status === 'ditutup'
   return (
     <div className="rounded-lg border border-line bg-surface p-5 shadow-2">
       <div className="flex items-start justify-between gap-3">
@@ -360,20 +473,126 @@ function DetailMejaCard({ meja }: { meja?: Meja }) {
       </div>
       <div className="my-5 h-px bg-line" />
       {meja.kunjungan_id ? (
-        <div className="rounded-md border border-line bg-paper px-4 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
-              {teks.kunjunganAktif}
-            </span>
-            <Pill tone={tone} dot>
-              {LABEL_STATUS_MEJA[meja.status]}
-            </Pill>
+        tagihan ? (
+          <div className="rounded-md border border-line bg-paper px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+                  {teks.kunjunganAktif}
+                </p>
+                <p className="mt-0.5 tabular-nums text-[12px] text-muted">
+                  {teks.kunjungan} {jamDibuat(tagihan.dibuat_pada)}
+                </p>
+              </div>
+              <Pill tone={STATUS_TAGIHAN_TONE[tagihan.status]} dot>
+                {LABEL_STATUS_TAGIHAN[tagihan.status]}
+              </Pill>
+            </div>
+
+            <ul className="mt-4 space-y-2.5 border-t border-line pt-3">
+              {tagihan.items.map((item) => (
+                <li key={item.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-[12.5px] font-semibold leading-tight text-ink">
+                      <span className="tabular-nums text-muted">{item.jumlah}× </span>
+                      {item.nama}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[12px] font-semibold text-ink">
+                      {formatRupiah(item.harga_satuan * item.jumlah)}
+                    </span>
+                  </div>
+                  {item.addons.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 pl-4">
+                      {item.addons.map((addon) => (
+                        <li
+                          key={addon.addon_id}
+                          className="text-[11px] leading-tight text-muted"
+                        >
+                          ↳ {addon.nama}
+                          {addon.harga > 0 ? ` · ${formatRupiah(addon.harga)}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 space-y-1.5 border-t border-line pt-3">
+              <BarisTotal label={teks.subtotal} nilai={tagihan.subtotal} />
+              <BarisTotal
+                label={teks.diskon}
+                nilai={tagihan.diskon}
+                negatif
+                catatan={tagihan.alasan_diskon}
+              />
+              <BarisTotal label={teks.pajak} nilai={tagihan.pajak} />
+              <BarisTotal label={teks.service} nilai={tagihan.service} />
+              <div className="pt-1">
+                <BarisTotal label={teks.total} nilai={tagihan.total} besar />
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2 border-t border-line pt-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={ditutup || aksiBerjalan}
+                  onClick={onBayar}
+                  className={TOMBOL_AKSI_PRIMER}
+                >
+                  {teks.bayar}
+                </button>
+                <button
+                  type="button"
+                  disabled={ditutup || aksiBerjalan}
+                  onClick={onDiskon}
+                  className={TOMBOL_SEKUNDER}
+                >
+                  {teks.diskon}
+                </button>
+              </div>
+              {tagihan.status === 'perlu_dicek' && (
+                <button
+                  type="button"
+                  disabled={aksiBerjalan}
+                  onClick={onKonfirmasi}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-red/30 bg-red-soft text-[12.5px] font-semibold text-red transition-all duration-150 hover:border-red active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {teks.konfirmasi}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={tagihan.status !== 'lunas' || aksiBerjalan}
+                onClick={onTutup}
+                className="inline-flex h-10 w-full items-center justify-center rounded-md border border-line bg-paper text-[12.5px] font-semibold text-muted transition-all duration-150 hover:border-accent hover:text-accent active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {teks.tutupMeja}
+              </button>
+            </div>
           </div>
-          <p className="mt-3 text-[12px] text-muted">{teks.tagihanBerjalan}</p>
-          <p className="mt-1 tabular-nums text-[26px] font-bold leading-none text-ink">
-            {formatRupiah(meja.total)}
-          </p>
-        </div>
+        ) : (
+          <div className="rounded-md border border-line bg-paper px-4 py-6 text-center text-[12px] text-muted">
+            {tagihanError ? (
+              <div role="alert">
+                <p>{tagihanError}</p>
+                <button
+                  type="button"
+                  onClick={onMuatUlang}
+                  className="mt-2 font-semibold text-accent underline underline-offset-2"
+                >
+                  {teks.cobaLagi}
+                </button>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                {tagihanLoading && <Spinner />}
+                {teks.memuatTagihan}
+              </span>
+            )}
+          </div>
+        )
       ) : (
         <div className="rounded-md border border-dashed border-line bg-paper px-4 py-10 text-center">
           <p className="text-[13.5px] font-semibold text-ink">{teks.belumPesanan}</p>
@@ -384,28 +603,31 @@ function DetailMejaCard({ meja }: { meja?: Meja }) {
   )
 }
 
-function HariIniCard() {
-  const batang = [38, 52, 34, 64, 48, 76, 100]
+function HariIniCard({ ringkasan }: { ringkasan: RingkasanHarian | null }) {
   return (
     <div className="mt-6 rounded-lg border border-line bg-surface p-5 shadow-1">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <Label>{teks.hariIni}</Label>
-        <Pill tone="hijau">{teks.naik}</Pill>
+        {ringkasan && (
+          <span className="tabular-nums text-[11px] text-muted">
+            {ringkasan.tanggal}
+          </span>
+        )}
       </div>
       <div className="mt-3 tabular-nums text-[26px] font-bold leading-none">
-        {formatRupiah(0)}
+        {formatRupiah(ringkasan?.total_diterima ?? 0)}
       </div>
-      <p className="mt-2 text-[12px] text-muted">{teks.belumTransaksi}</p>
-      <div className="mt-5 flex h-10 items-end gap-1.5" aria-hidden="true">
-        {batang.map((tinggi, i) => (
-          <span
-            key={i}
-            className={`flex-1 rounded-sm ${i === batang.length - 1 ? 'bg-accent' : 'bg-accent-soft'}`}
-            style={{ height: `${tinggi}%` }}
-          />
-        ))}
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-muted">
+        <span>
+          {ringkasan?.jumlah_transaksi ?? 0} {teks.transaksi}
+        </span>
+        <span>
+          {ringkasan?.tagihan_terbuka ?? 0} {teks.tagihanTerbuka}
+        </span>
+        <span>
+          {ringkasan?.perlu_dicek ?? 0} {teks.statusPerluDicek}
+        </span>
       </div>
-      <p className="mt-2 text-[11px] text-muted">{teks.aktivitas}</p>
     </div>
   )
 }
@@ -799,6 +1021,737 @@ function GrupAddonCard({ grup }: { grup: GrupAddon }) {
   )
 }
 
+function DialogShell({
+  judul,
+  sub,
+  onTutup,
+  children,
+}: {
+  judul: string
+  sub?: string
+  onTutup: () => void
+  children: ReactNode
+}) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    if (!dialog.open) dialog.showModal()
+    return () => {
+      if (dialog.open) dialog.close()
+    }
+  }, [])
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="dialog-judul"
+      onClick={(e) => {
+        if (e.target === dialogRef.current) onTutup()
+      }}
+      onCancel={(e) => {
+        e.preventDefault()
+        onTutup()
+      }}
+      className="m-auto w-[min(420px,calc(100%_-_24px))] rounded-lg border border-line bg-surface p-0 text-ink shadow-2"
+    >
+      <div className="border-b border-line px-5 py-4">
+        <h2 id="dialog-judul" className="text-[16px] font-bold leading-tight">
+          {judul}
+        </h2>
+        {sub && <p className="mt-1 text-[12px] text-muted">{sub}</p>}
+      </div>
+      <div className="px-5 py-4">{children}</div>
+    </dialog>
+  )
+}
+
+function DialogBayar({
+  tagihan,
+  onTutup,
+  onBayar,
+}: {
+  tagihan: TagihanDetail
+  onTutup: () => void
+  onBayar: (body: BayarRequest) => Promise<void>
+}) {
+  const [metode, setMetode] = useState<MetodeBayar>('tunai')
+  const [nominal, setNominal] = useState(String(tagihan.total))
+  const [perluDicek, setPerluDicek] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const angka = Number(nominal)
+    if (!Number.isFinite(angka) || angka <= 0) {
+      setError(teks.nominalWajib)
+      return
+    }
+    setWorking(true)
+    setError(null)
+    try {
+      await onBayar({
+        metode,
+        nominal: angka,
+        ...(metode === 'qris_manual' ? { perlu_dicek: perluDicek } : {}),
+      })
+    } catch (err: unknown) {
+      setError(pesanError(err, 'biasa'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <DialogShell judul={teks.bayarJudul} sub={teks.bayarSub} onTutup={onTutup}>
+      <form
+        onSubmit={(e) => {
+          void submit(e)
+        }}
+      >
+        <div className="rounded-md bg-paper px-3.5 py-3">
+          <BarisTotal label={teks.total} nilai={tagihan.total} besar />
+        </div>
+
+        <fieldset className="mt-4">
+          <legend className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {teks.metodeBayar}
+          </legend>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(['tunai', 'qris_manual'] as const).map((m) => (
+              <label
+                key={m}
+                className={`flex h-10 cursor-pointer items-center justify-center rounded-md border text-[12.5px] font-semibold transition-colors duration-150 ${
+                  metode === m
+                    ? 'border-accent bg-accent-soft text-accent'
+                    : 'border-line bg-surface text-muted hover:border-accent'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="metode-bayar"
+                  className="sr-only"
+                  checked={metode === m}
+                  onChange={() => setMetode(m)}
+                />
+                {m === 'tunai' ? teks.metodeTunai : teks.metodeQris}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <label className="mt-4 block">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {teks.nominal}
+          </span>
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            required
+            value={nominal}
+            onChange={(e) => setNominal(e.target.value)}
+            className="mt-2 h-11 w-full rounded-sm border border-line bg-paper px-3.5 text-[14px] tabular-nums text-ink outline-none transition-colors duration-150 focus:border-accent focus:bg-surface"
+          />
+        </label>
+
+        {metode === 'qris_manual' && (
+          <label className="mt-4 flex items-start gap-2.5 rounded-md border border-line bg-paper px-3.5 py-3">
+            <input
+              type="checkbox"
+              checked={perluDicek}
+              onChange={(e) => setPerluDicek(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+            />
+            <span>
+              <span className="block text-[12.5px] font-semibold text-ink">
+                {teks.perluDicek}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-muted">
+                {teks.perluDicekBantuan}
+              </span>
+            </span>
+          </label>
+        )}
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 rounded-md border border-red/30 bg-red-soft px-3.5 py-2.5 text-[12px] text-red"
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onTutup} className={TOMBOL_SEKUNDER}>
+            {teks.batal}
+          </button>
+          <button type="submit" disabled={working} className={TOMBOL_PRIMER}>
+            {working && <Spinner />}
+            {teks.bayarSekarang}
+          </button>
+        </div>
+      </form>
+    </DialogShell>
+  )
+}
+
+function DialogDiskon({
+  tagihan,
+  onTutup,
+  onDiskon,
+}: {
+  tagihan: TagihanDetail
+  onTutup: () => void
+  onDiskon: (body: DiskonRequest) => Promise<void>
+}) {
+  const [bentuk, setBentuk] = useState<'nominal' | 'persen'>('nominal')
+  const [nominal, setNominal] = useState('')
+  const [persen, setPersen] = useState('')
+  const [alasan, setAlasan] = useState('')
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const angka = bentuk === 'nominal' ? Number(nominal) : Number(persen)
+    if (!Number.isFinite(angka) || angka <= 0) {
+      setError(teks.nilaiDiskonWajib)
+      return
+    }
+    if (alasan.trim() === '') {
+      setError(teks.diskonWajib)
+      return
+    }
+    if (pin.trim() === '') {
+      setError(teks.pinWajib)
+      return
+    }
+    setWorking(true)
+    setError(null)
+    try {
+      await onDiskon({
+        ...(bentuk === 'nominal' ? { diskon: angka } : { persen: angka }),
+        alasan: alasan.trim(),
+        pin: pin.trim(),
+      })
+    } catch (err: unknown) {
+      setError(pesanError(err, 'biasa'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const inputKelas =
+    'mt-2 h-11 w-full rounded-sm border border-line bg-paper px-3.5 text-[14px] tabular-nums text-ink outline-none transition-colors duration-150 placeholder:text-idle focus:border-accent focus:bg-surface'
+
+  return (
+    <DialogShell judul={teks.diskonJudul} sub={teks.diskonSub} onTutup={onTutup}>
+      <form
+        onSubmit={(e) => {
+          void submit(e)
+        }}
+      >
+        <div className="rounded-md bg-paper px-3.5 py-3">
+          <BarisTotal label={teks.total} nilai={tagihan.total} besar />
+        </div>
+
+        <fieldset className="mt-4">
+          <legend className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {teks.bentukDiskon}
+          </legend>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(['nominal', 'persen'] as const).map((b) => (
+              <label
+                key={b}
+                className={`flex h-10 cursor-pointer items-center justify-center rounded-md border text-[12.5px] font-semibold transition-colors duration-150 ${
+                  bentuk === b
+                    ? 'border-accent bg-accent-soft text-accent'
+                    : 'border-line bg-surface text-muted hover:border-accent'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="bentuk-diskon"
+                  className="sr-only"
+                  checked={bentuk === b}
+                  onChange={() => setBentuk(b)}
+                />
+                {b === 'nominal' ? teks.diskonNominal : teks.diskonPersen}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <label className="mt-4 block">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {bentuk === 'nominal' ? teks.diskonNominal : teks.diskonPersen}
+          </span>
+          {bentuk === 'nominal' ? (
+            <input
+              type="number"
+              min={0}
+              max={tagihan.subtotal}
+              required
+              value={nominal}
+              onChange={(e) => setNominal(e.target.value)}
+              placeholder="0"
+              className={inputKelas}
+            />
+          ) : (
+            <input
+              type="number"
+              min={0}
+              max={100}
+              required
+              value={persen}
+              onChange={(e) => setPersen(e.target.value)}
+              placeholder="0"
+              className={inputKelas}
+            />
+          )}
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {teks.alasan}
+          </span>
+          <input
+            type="text"
+            required
+            value={alasan}
+            onChange={(e) => setAlasan(e.target.value)}
+            placeholder={teks.alasanPlaceholder}
+            className={inputKelas}
+          />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {teks.pinPemilik}
+          </span>
+          <input
+            type="password"
+            inputMode="numeric"
+            required
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            className={inputKelas}
+          />
+          <span className="mt-1.5 block text-[11px] text-muted">
+            {teks.pinPemilikHint}
+          </span>
+        </label>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 rounded-md border border-red/30 bg-red-soft px-3.5 py-2.5 text-[12px] text-red"
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onTutup} className={TOMBOL_SEKUNDER}>
+            {teks.batal}
+          </button>
+          <button type="submit" disabled={working} className={TOMBOL_PRIMER}>
+            {working && <Spinner />}
+            {teks.diskonSimpan}
+          </button>
+        </div>
+      </form>
+    </DialogShell>
+  )
+}
+
+function DialogKonfirmasi({
+  judul,
+  sub,
+  labelTombol,
+  onTutup,
+  onKonfirmasi,
+}: {
+  judul: string
+  sub: string
+  labelTombol: string
+  onTutup: () => void
+  onKonfirmasi: () => Promise<void>
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+
+  async function jalankan() {
+    setWorking(true)
+    setError(null)
+    try {
+      await onKonfirmasi()
+    } catch (err: unknown) {
+      setError(pesanError(err, 'biasa'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <DialogShell judul={judul} sub={sub} onTutup={onTutup}>
+      {error && (
+        <div
+          role="alert"
+          className="rounded-md border border-red/30 bg-red-soft px-3.5 py-2.5 text-[12px] text-red"
+        >
+          {error}
+        </div>
+      )}
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button type="button" onClick={onTutup} className={TOMBOL_SEKUNDER}>
+          {teks.batal}
+        </button>
+        <button
+          type="button"
+          disabled={working}
+          onClick={() => void jalankan()}
+          className={TOMBOL_PRIMER}
+        >
+          {working && <Spinner />}
+          {labelTombol}
+        </button>
+      </div>
+    </DialogShell>
+  )
+}
+
+function labelMetode(metode: string): string {
+  if (metode === 'tunai') return teks.metodeTunai
+  if (metode === 'qris_manual' || metode === 'qris') return teks.metodeQris
+  return metode
+}
+
+function MetrikRingkas({
+  label,
+  nilai,
+  tone = 'netral',
+}: {
+  label: string
+  nilai: string
+  tone?: Tone
+}) {
+  return (
+    <div className="rounded-lg border border-line bg-surface p-4 shadow-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted">
+          {label}
+        </span>
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${DOT_TONE[tone]}`}
+          aria-hidden="true"
+        />
+      </div>
+      <p className="mt-2 tabular-nums text-[22px] font-bold leading-none text-ink">
+        {nilai}
+      </p>
+    </div>
+  )
+}
+
+function RingkasanPage({
+  ringkasan,
+  error,
+  loading,
+  onSegarkan,
+}: {
+  ringkasan: RingkasanHarian | null
+  error: string | null
+  loading: boolean
+  onSegarkan: () => void
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[21px] font-bold leading-tight tracking-tight">
+            {teks.ringkasanJudul}
+          </h1>
+          <p className="mt-1 text-[13px] text-muted">{teks.ringkasanSub}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onSegarkan}
+          disabled={loading}
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3.5 text-[12px] font-semibold text-muted transition-colors duration-150 hover:border-accent hover:text-accent disabled:opacity-60"
+        >
+          {loading && <Spinner />}
+          {teks.segarkan}
+        </button>
+      </div>
+
+      {error && <ErrorBanner pesan={error} onRetry={onSegarkan} />}
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="space-y-4">
+          {ringkasan ? (
+            <>
+              <div className="rounded-lg border border-line bg-surface p-6 shadow-2">
+                <Label>
+                  {teks.totalDiterima} · {ringkasan.tanggal}
+                </Label>
+                <p className="mt-3 tabular-nums text-[34px] font-bold leading-none text-ink">
+                  {formatRupiah(ringkasan.total_diterima)}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <MetrikRingkas
+                  label={teks.jumlahTransaksi}
+                  nilai={String(ringkasan.jumlah_transaksi)}
+                />
+                <MetrikRingkas
+                  label={teks.tagihanTerbuka}
+                  nilai={String(ringkasan.tagihan_terbuka)}
+                />
+                <MetrikRingkas
+                  label={teks.statusPerluDicek}
+                  nilai={String(ringkasan.perlu_dicek)}
+                  tone={ringkasan.perlu_dicek > 0 ? 'merah' : 'netral'}
+                />
+              </div>
+
+              <section className="rounded-lg border border-line bg-surface p-5 shadow-1">
+                <Label>{teks.perMetode}</Label>
+                <div className="mt-3 overflow-hidden rounded-md border border-line">
+                  <table className="w-full text-[12.5px]">
+                    <thead className="bg-paper text-left text-[11px] uppercase tracking-[0.06em] text-muted">
+                      <tr>
+                        <th className="px-3 py-2 font-semibold">{teks.metode}</th>
+                        <th className="px-3 py-2 text-right font-semibold">
+                          {teks.jumlahTransaksi}
+                        </th>
+                        <th className="px-3 py-2 text-right font-semibold">
+                          {teks.total}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ringkasan.per_metode.map((m) => (
+                        <tr key={m.metode} className="border-t border-line">
+                          <td className="px-3 py-2.5 font-semibold text-ink">
+                            {labelMetode(m.metode)}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-muted">
+                            {m.jumlah}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-bold text-ink">
+                            {formatRupiah(m.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {ringkasan.per_metode.length === 0 && (
+                  <p className="mt-3 text-[12px] text-muted">
+                    {teks.ringkasanKosong}
+                  </p>
+                )}
+              </section>
+            </>
+          ) : loading ? (
+            <div className="h-40 rounded-lg border border-line bg-paper-2" />
+          ) : null}
+        </section>
+
+        <section className="rounded-lg border border-line bg-surface p-5 shadow-1">
+          <Label>{teks.diskonDiberikan}</Label>
+          {ringkasan && ringkasan.diskon.length > 0 ? (
+            <ul className="mt-3 space-y-3">
+              {ringkasan.diskon.map((d) => (
+                <li
+                  key={d.tagihan_id}
+                  className="border-b border-line pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[12.5px] font-semibold text-ink">
+                      {teks.mejaJudul} {formatNomorMeja(d.meja_nomor)}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[12.5px] font-bold text-accent">
+                      −{formatRupiah(d.nominal)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11.5px] italic text-muted">
+                    {d.alasan}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-[12px] text-muted">{teks.belumTransaksi}</p>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function PengaturanPage({
+  data,
+  error,
+  onSimpan,
+}: {
+  data: PengaturanResponse | null
+  error: string | null
+  onSimpan: (body: UpdatePengaturanRequest) => Promise<void>
+}) {
+  const [pajak, setPajak] = useState('10')
+  const [service, setService] = useState('0')
+  const [mode, setMode] = useState<PengaturanResponse['mode_bayar']>('manual')
+  const [errorForm, setErrorForm] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const [working, setWorking] = useState(false)
+
+  useEffect(() => {
+    if (!data) return
+    setPajak(String(data.pajak_persen))
+    setService(String(data.service_persen))
+    setMode(data.mode_bayar)
+    setSaved(false)
+  }, [data])
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const nilaiPajak = Number(pajak)
+    const nilaiService = Number(service)
+    const tidakValid = (n: number) => !Number.isFinite(n) || n < 0 || n > 100
+    if (tidakValid(nilaiPajak) || tidakValid(nilaiService)) {
+      setErrorForm(teks.persenTidakValid)
+      return
+    }
+    setWorking(true)
+    setErrorForm(null)
+    setSaved(false)
+    try {
+      await onSimpan({
+        pajak_persen: nilaiPajak,
+        service_persen: nilaiService,
+        mode_bayar: mode,
+      })
+      setSaved(true)
+    } catch (err: unknown) {
+      setErrorForm(pesanError(err, 'biasa'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const inputKelas =
+    'mt-2 h-11 w-full rounded-sm border border-line bg-paper px-3.5 text-[14px] tabular-nums text-ink outline-none transition-colors duration-150 focus:border-accent focus:bg-surface'
+
+  return (
+    <div className="min-w-0 max-w-[640px]">
+      <div className="mb-5">
+        <h1 className="text-[21px] font-bold leading-tight tracking-tight">
+          {teks.pengaturanJudul}
+        </h1>
+        <p className="mt-1 text-[13px] text-muted">{teks.pengaturanSub}</p>
+      </div>
+
+      {error && <ErrorBanner pesan={error} />}
+
+      <form
+        onSubmit={(e) => {
+          void submit(e)
+        }}
+        className="rounded-lg border border-line bg-surface p-5 shadow-2"
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+              {teks.pajakPersen}
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              required
+              value={pajak}
+              onChange={(e) => {
+                setPajak(e.target.value)
+                setSaved(false)
+              }}
+              className={inputKelas}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+              {teks.servicePersen}
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              required
+              value={service}
+              onChange={(e) => {
+                setService(e.target.value)
+                setSaved(false)
+              }}
+              className={inputKelas}
+            />
+          </label>
+        </div>
+
+        <label className="mt-4 block">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
+            {teks.modeBayar}
+          </span>
+          <select
+            value={mode}
+            onChange={(e) => {
+              setMode(e.target.value as PengaturanResponse['mode_bayar'])
+              setSaved(false)
+            }}
+            className={inputKelas}
+          >
+            <option value="manual">{teks.modeManual}</option>
+            <option value="otomatis">{teks.modeOtomatis}</option>
+            <option value="keduanya">{teks.modeKeduanya}</option>
+          </select>
+        </label>
+
+        <p className="mt-4 rounded-md border border-line bg-paper px-3.5 py-3 text-[11.5px] leading-relaxed text-muted">
+          {teks.persenBantuan} {teks.modeOtomatisCatatan}
+        </p>
+
+        {errorForm && (
+          <div
+            role="alert"
+            className="mt-4 rounded-md border border-red/30 bg-red-soft px-3.5 py-2.5 text-[12px] text-red"
+          >
+            {errorForm}
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={working || !data}
+            className={`w-full sm:w-auto sm:min-w-[160px] ${TOMBOL_PRIMER}`}
+          >
+            {working && <Spinner />}
+            {working ? teks.menyimpan : teks.simpan}
+          </button>
+          {saved && <Pill tone="hijau">{teks.tersimpan}</Pill>}
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function App() {
   // Halaman pelanggan berdiri sendiri: tidak boleh melewati boot/login sama sekali.
   const rutePelanggan = window.location.pathname.match(/^\/m\/([a-f0-9]{24})\/?$/)
@@ -825,7 +1778,22 @@ export default function App() {
   const [antrean, setAntrean] = useState<PesananAntrean[] | null>(null)
   const [antreanError, setAntreanError] = useState<string | null>(null)
   const [aksiAntrean, setAksiAntrean] = useState<number | null>(null)
+
+  // Milestone 3 — tagihan meja terpilih, ringkasan, dan pengaturan.
+  const [tagihan, setTagihan] = useState<TagihanDetail | null>(null)
+  const [tagihanLoading, setTagihanLoading] = useState(false)
+  const [tagihanError, setTagihanError] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<DialogAksi>(null)
+  const [aksiTagihan, setAksiTagihan] = useState(false)
+  const [notifikasi, setNotifikasi] = useState<string | null>(null)
+  const [ringkasan, setRingkasan] = useState<RingkasanHarian | null>(null)
+  const [ringkasanLoading, setRingkasanLoading] = useState(false)
+  const [ringkasanError, setRingkasanError] = useState<string | null>(null)
+  const [pengaturan, setPengaturan] = useState<PengaturanResponse | null>(null)
+  const [pengaturanError, setPengaturanError] = useState<string | null>(null)
+
   const sedangMasuk = useRef(false)
+  const mejaTerpilih = meja?.find((m) => m.id === pilihMejaId)
 
   // 401 dari panggilan mana pun mengembalikan pengguna ke layar masuk.
   useEffect(
@@ -834,6 +1802,9 @@ export default function App() {
         setSesi(null)
         setMeja(null)
         setMenu(null)
+        setTagihan(null)
+        setDialog(null)
+        setNotifikasi(null)
         setHalaman('meja')
         setLoginError(teks.sesiBerakhir)
       }),
@@ -936,6 +1907,142 @@ export default function App() {
     return () => window.clearInterval(id)
   }, [sesi, halaman, muatAntrean])
 
+  const tagihanMejaRef = useRef<number | null>(null)
+  const muatTagihan = useCallback((mejaId: number) => {
+    tagihanMejaRef.current = mejaId
+    setTagihanLoading(true)
+    setTagihanError(null)
+    getTagihanMeja(mejaId)
+      .then((res) => {
+        if (tagihanMejaRef.current === mejaId) setTagihan(res.tagihan)
+      })
+      .catch((err: unknown) => {
+        if (tagihanMejaRef.current === mejaId)
+          setTagihanError(pesanError(err, 'biasa'))
+      })
+      .finally(() => {
+        if (tagihanMejaRef.current === mejaId) setTagihanLoading(false)
+      })
+  }, [])
+
+  const muatRingkasan = useCallback(() => {
+    setRingkasanLoading(true)
+    getRingkasanHarian()
+      .then((res) => {
+        setRingkasan(res)
+        setRingkasanError(null)
+      })
+      .catch((err: unknown) => setRingkasanError(pesanError(err, 'biasa')))
+      .finally(() => setRingkasanLoading(false))
+  }, [])
+
+  const muatPengaturan = useCallback(() => {
+    getPengaturan()
+      .then((res) => {
+        setPengaturan(res)
+        setPengaturanError(null)
+      })
+      .catch((err: unknown) => setPengaturanError(pesanError(err, 'biasa')))
+  }, [])
+
+  // Tagihan meja terpilih diperbarui tiap 3 detik selama kunjungan berjalan.
+  useEffect(() => {
+    if (!sesi || halaman !== 'meja') return
+    const mejaId = mejaTerpilih?.id
+    if (!mejaId || !mejaTerpilih?.kunjungan_id) {
+      tagihanMejaRef.current = null
+      setTagihan(null)
+      setTagihanError(null)
+      return
+    }
+    setTagihan(null)
+    muatTagihan(mejaId)
+    const id = window.setInterval(() => muatTagihan(mejaId), 3000)
+    return () => window.clearInterval(id)
+  }, [sesi, halaman, mejaTerpilih?.id, mejaTerpilih?.kunjungan_id, muatTagihan])
+
+  // Ringkasan harian dipakai kartu ringkas di papan meja dan halaman penuh.
+  useEffect(() => {
+    if (!sesi) return
+    muatRingkasan()
+    if (halaman !== 'ringkasan') return
+    const id = window.setInterval(muatRingkasan, 3000)
+    return () => window.clearInterval(id)
+  }, [sesi, halaman, muatRingkasan])
+
+  useEffect(() => {
+    if (
+      !sesi ||
+      sesi.pengguna.peran !== 'owner' ||
+      halaman !== 'pengaturan'
+    )
+      return
+    muatPengaturan()
+  }, [sesi, halaman, muatPengaturan])
+
+  // Notifikasi sukses muncul sebentar lalu hilang sendiri.
+  useEffect(() => {
+    if (!notifikasi) return
+    const id = window.setTimeout(() => setNotifikasi(null), 4000)
+    return () => window.clearTimeout(id)
+  }, [notifikasi])
+
+  function segarkanSetelahAksi() {
+    if (mejaTerpilih?.kunjungan_id) muatTagihan(mejaTerpilih.id)
+    muatMeja()
+    muatRingkasan()
+  }
+
+  async function aksiBayar(body: BayarRequest) {
+    if (!tagihan) return
+    await bayarTagihan(tagihan.id, body)
+    setDialog(null)
+    setNotifikasi(teks.bayarBerhasil)
+    segarkanSetelahAksi()
+  }
+
+  async function aksiDiskon(body: DiskonRequest) {
+    if (!tagihan) return
+    await beriDiskon(tagihan.id, body)
+    setDialog(null)
+    setNotifikasi(teks.diskonBerhasil)
+    segarkanSetelahAksi()
+  }
+
+  async function aksiKonfirmasi() {
+    if (!tagihan) return
+    setAksiTagihan(true)
+    try {
+      await konfirmasiPembayaran(tagihan.id)
+      setDialog(null)
+      setNotifikasi(teks.konfirmasiBerhasil)
+      segarkanSetelahAksi()
+    } finally {
+      setAksiTagihan(false)
+    }
+  }
+
+  async function aksiTutup() {
+    if (!tagihan) return
+    setAksiTagihan(true)
+    try {
+      await tutupKunjungan(tagihan.kunjungan_id)
+      setDialog(null)
+      tagihanMejaRef.current = null
+      setTagihan(null)
+      setNotifikasi(teks.tutupBerhasil)
+      muatMeja()
+      muatRingkasan()
+    } finally {
+      setAksiTagihan(false)
+    }
+  }
+
+  async function simpanPengaturan(body: UpdatePengaturanRequest) {
+    const res = await updatePengaturan(body)
+    setPengaturan(res)
+  }
+
   async function aksiPesanan(pesanan: PesananAntrean) {
     if (aksiAntrean !== null) return
     setAksiAntrean(pesanan.id)
@@ -1017,6 +2124,9 @@ export default function App() {
     setSesi(null)
     setMeja(null)
     setMenu(null)
+    setTagihan(null)
+    setDialog(null)
+    setNotifikasi(null)
     setHalaman('meja')
     setLoginError(null)
     setPin('')
@@ -1218,7 +2328,6 @@ export default function App() {
 
   const owner = sesi.pengguna.peran === 'owner'
   const inisial = sesi.pengguna.nama.trim().charAt(0).toUpperCase() || 'K'
-  const mejaTerpilih = meja?.find((m) => m.id === pilihMejaId)
   const kategoriList = menu ? [...menu.kategori].sort((a, b) => a.urutan - b.urutan) : []
   const grupList = menu ? [...menu.grup_addon].sort((a, b) => a.urutan - b.urutan) : []
 
@@ -1285,6 +2394,18 @@ export default function App() {
                 />
               </>
             )}
+            <NavItem
+              aktif={halaman === 'ringkasan'}
+              label={teks.navRingkasan}
+              onClick={() => setHalaman('ringkasan')}
+            />
+            {owner && (
+              <NavItem
+                aktif={halaman === 'pengaturan'}
+                label={teks.navPengaturan}
+                onClick={() => setHalaman('pengaturan')}
+              />
+            )}
           </div>
           <div className="mt-auto rounded-md border border-line bg-surface p-3.5 shadow-1">
             <div className="text-[11px] font-semibold uppercase tracking-[0.09em] text-accent">
@@ -1295,7 +2416,7 @@ export default function App() {
         </nav>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">
-          <div className="mb-5 flex gap-2 md:hidden">
+          <div className="mb-5 flex flex-wrap gap-2 md:hidden">
             <NavItem
               aktif={halaman === 'meja'}
               label={teks.navMeja}
@@ -1314,6 +2435,18 @@ export default function App() {
                   onClick={() => setHalaman('qr')}
                 />
               </>
+            )}
+            <NavItem
+              aktif={halaman === 'ringkasan'}
+              label={teks.navRingkasan}
+              onClick={() => setHalaman('ringkasan')}
+            />
+            {owner && (
+              <NavItem
+                aktif={halaman === 'pengaturan'}
+                label={teks.navPengaturan}
+                onClick={() => setHalaman('pengaturan')}
+              />
             )}
           </div>
 
@@ -1376,13 +2509,39 @@ export default function App() {
                   )
                 )}
 
-                <HariIniCard />
+                <HariIniCard ringkasan={ringkasan} />
               </section>
 
               <aside className="min-w-0 xl:sticky xl:top-24 xl:self-start">
-                <DetailMejaCard meja={mejaTerpilih} />
+                <DetailMejaCard
+                  meja={mejaTerpilih}
+                  tagihan={tagihan}
+                  tagihanLoading={tagihanLoading}
+                  tagihanError={tagihanError}
+                  onMuatUlang={() => {
+                    if (mejaTerpilih) muatTagihan(mejaTerpilih.id)
+                  }}
+                  onBayar={() => setDialog('bayar')}
+                  onDiskon={() => setDialog('diskon')}
+                  onKonfirmasi={() => setDialog('konfirmasi')}
+                  onTutup={() => setDialog('tutup')}
+                  aksiBerjalan={aksiTagihan}
+                />
               </aside>
             </div>
+          ) : halaman === 'ringkasan' ? (
+            <RingkasanPage
+              ringkasan={ringkasan}
+              error={ringkasanError}
+              loading={ringkasanLoading}
+              onSegarkan={muatRingkasan}
+            />
+          ) : halaman === 'pengaturan' ? (
+            <PengaturanPage
+              data={pengaturan}
+              error={pengaturanError}
+              onSimpan={(body) => simpanPengaturan(body)}
+            />
           ) : halaman === 'qr' ? (
             <QrPage daftarMeja={meja} />
           ) : (
@@ -1462,6 +2621,52 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {dialog && tagihan && (
+        <>
+          {dialog === 'bayar' && (
+            <DialogBayar
+              tagihan={tagihan}
+              onTutup={() => setDialog(null)}
+              onBayar={(body) => aksiBayar(body)}
+            />
+          )}
+          {dialog === 'diskon' && (
+            <DialogDiskon
+              tagihan={tagihan}
+              onTutup={() => setDialog(null)}
+              onDiskon={(body) => aksiDiskon(body)}
+            />
+          )}
+          {dialog === 'konfirmasi' && (
+            <DialogKonfirmasi
+              judul={teks.konfirmasiJudul}
+              sub={teks.konfirmasiSub}
+              labelTombol={teks.konfirmasiYa}
+              onTutup={() => setDialog(null)}
+              onKonfirmasi={aksiKonfirmasi}
+            />
+          )}
+          {dialog === 'tutup' && (
+            <DialogKonfirmasi
+              judul={teks.tutupJudul}
+              sub={teks.tutupSub}
+              labelTombol={teks.tutupYa}
+              onTutup={() => setDialog(null)}
+              onKonfirmasi={aksiTutup}
+            />
+          )}
+        </>
+      )}
+
+      {notifikasi && (
+        <div
+          role="status"
+          className="fixed bottom-12 left-1/2 z-50 -translate-x-1/2 rounded-full border border-line bg-surface px-4 py-2 text-[12px] font-semibold text-accent shadow-2 transition-opacity duration-150"
+        >
+          {notifikasi}
+        </div>
+      )}
 
       <Footer />
     </div>

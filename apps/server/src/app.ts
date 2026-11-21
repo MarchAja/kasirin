@@ -11,8 +11,11 @@ import { seedDemo } from "./db/seed.js";
 import { HttpError } from "./http.js";
 import { registerAuth } from "./routes/auth.js";
 import { registerCustomer } from "./routes/customer.js";
+import { registerKunjungan } from "./routes/kunjungan.js";
 import { registerMenu } from "./routes/menu.js";
 import { registerOrders } from "./routes/orders.js";
+import { registerRingkasan } from "./routes/ringkasan.js";
+import { registerTagihan } from "./routes/tagihan.js";
 import { registerTables } from "./routes/tables.js";
 
 export interface AppOptions {
@@ -38,6 +41,10 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
     if (error instanceof ZodError) {
       return reply.code(400).send({ error: "Data tidak valid.", detail: error.issues });
     }
+    const status = (error as { statusCode?: unknown }).statusCode;
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      return reply.code(status).send({ error: (error as Error).message });
+    }
     app.log.error(error);
     return reply.code(500).send({ error: "Terjadi kesalahan pada server." });
   });
@@ -53,6 +60,9 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
   registerMenu(app, db);
   registerCustomer(app, db);
   registerOrders(app, db);
+  registerTagihan(app, db);
+  registerKunjungan(app, db);
+  registerRingkasan(app, db);
 
   if (fs.existsSync(uploadDir)) {
     await app.register(fastifyStatic, {

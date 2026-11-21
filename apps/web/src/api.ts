@@ -1,18 +1,26 @@
 import type {
+  AntreanResponse,
+  BayarRequest,
+  DiskonRequest,
   HealthResponse,
   InfoMejaResponse,
   KirimPesananRequest,
   KirimPesananResponse,
   LoginRequest,
   LoginResponse,
+  Meja,
   MejaResponse,
   MeResponse,
   MenuResponse,
   PatchMenuRequest,
   PatchMenuResponse,
+  PengaturanResponse,
   PesananPublik,
+  RingkasanHarian,
   StatusResponse,
-  AntreanResponse,
+  TagihanDetail,
+  TagihanResponse,
+  UpdatePengaturanRequest,
 } from './types'
 
 export const TOKEN_KEY = 'kasirin.token'
@@ -173,5 +181,65 @@ export function terimaPesanan(id: number): Promise<{ pesanan: PesananPublik }> {
 export function sajikanPesanan(id: number): Promise<{ pesanan: PesananPublik }> {
   return request<{ pesanan: PesananPublik }>(`/orders/${id}/serve`, {
     method: 'POST',
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Milestone 3 — alur kasir: tagihan, bayar, diskon, tutup meja, dan ringkasan
+// ---------------------------------------------------------------------------
+
+export function getTagihanMeja(mejaId: number): Promise<TagihanResponse> {
+  return request<TagihanResponse>(`/tagihan/meja/${mejaId}`)
+}
+
+export function bayarTagihan(
+  id: number,
+  body: BayarRequest,
+): Promise<TagihanResponse> {
+  return request<TagihanResponse>(`/tagihan/${id}/bayar`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function beriDiskon(
+  id: number,
+  body: DiskonRequest,
+): Promise<TagihanResponse> {
+  return request<TagihanResponse>(`/tagihan/${id}/diskon`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function konfirmasiPembayaran(id: number): Promise<TagihanResponse> {
+  return request<TagihanResponse>(`/tagihan/${id}/konfirmasi`, {
+    method: 'POST',
+  })
+}
+
+export function tutupKunjungan(
+  id: number,
+): Promise<{ meja: Meja; tagihan: TagihanDetail }> {
+  return request<{ meja: Meja; tagihan: TagihanDetail }>(
+    `/kunjungan/${id}/tutup`,
+    { method: 'POST' },
+  )
+}
+
+export function getRingkasanHarian(): Promise<RingkasanHarian> {
+  return request<RingkasanHarian>('/ringkasan/hari-ini')
+}
+
+export function getPengaturan(): Promise<PengaturanResponse> {
+  return request<PengaturanResponse>('/outlet')
+}
+
+export function updatePengaturan(
+  body: UpdatePengaturanRequest,
+): Promise<PengaturanResponse> {
+  return request<PengaturanResponse>('/outlet', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
   })
 }

@@ -26,6 +26,7 @@ export const config = {
   dataDir: path.resolve(ROOT_DIR, process.env.KASIRIN_DATA_DIR ?? "data"),
   demo: boolEnv("KASIRIN_DEMO", true),
   ownerPassword: process.env.KASIRIN_OWNER_PASSWORD ?? "owner123",
+  ownerPin: process.env.KASIRIN_OWNER_PIN ?? "246810",
   kasirPin: process.env.KASIRIN_KASIR_PIN ?? "123456",
   sessionSecret:
     process.env.KASIRIN_SESSION_SECRET ?? "kasirin-dev-secret-ganti-di-produksi",

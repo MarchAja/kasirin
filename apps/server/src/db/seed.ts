@@ -74,8 +74,8 @@ export function seedDemo(db: Db, opsi?: { paksa?: boolean }): boolean {
 
     db.prepare(
       `INSERT INTO pengguna (nama, peran, password_hash, pin_hash)
-       VALUES ('Pemilik', 'owner', ?, NULL)`,
-    ).run(hashSecret(config.ownerPassword));
+       VALUES ('Pemilik', 'owner', ?, ?)`,
+    ).run(hashSecret(config.ownerPassword), hashSecret(config.ownerPin));
     db.prepare(
       `INSERT INTO pengguna (nama, peran, password_hash, pin_hash)
        VALUES ('Rina', 'kasir', NULL, ?)`,

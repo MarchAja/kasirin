@@ -192,6 +192,19 @@ Screenshot hasil implementasi Milestone 2:
 `docs/mockups/kasir-m2.png`, `pelanggan-menu.png`, `pelanggan-addon.png`,
 `pelanggan-status.png`.
 
+### Panel tagihan kasir (M3)
+
+- Panel tagihan menggantikan kotak ringkasan saat meja memiliki kunjungan aktif.
+- Baris item memakai snapshot nama/harga; addon menjorok di bawah item.
+- Urutan angka: subtotal → diskon (dengan alasan) → pajak → service → **total**.
+- Tiga aksi utama: `Bayar` (tunai / QRIS manual), `Diskon` (PIN pemilik +
+  alasan wajib), `Tutup meja` (hanya aktif saat lunas).
+- QRIS manual yang meragukan ditandai `perlu_dicek` dengan pill merah; tombol
+  `Konfirmasi` tersedia sampai kasir memverifikasi.
+- Panel di-refresh tiap 3 detik bersama antrean pesanan.
+
+Screenshot: `docs/mockups/kasir-m3.png`, `ringkasan-m3.png`.
+
 ### Halaman status pelanggan (M2)
 
 - Dibuka otomatis saat QR meja dibuka dan kunjungan masih aktif; tombol

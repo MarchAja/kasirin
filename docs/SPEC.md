@@ -3,11 +3,11 @@
 > POS open source untuk UMKM F&B Indonesia. Berjalan di komputer kasir sendiri,
 > tanpa VPS, tanpa langganan. Pelanggan memesan lewat QR di meja.
 
-Status: Milestone 2 dibangun (alur pemesanan pelanggan lewat QR + antrean kasir).
+Status: Milestone 3 dibangun (pembayaran manual, diskon, tutup meja, ringkasan harian).
 Lisensi: AGPL-3.0. Pembuat: @MarchAja.
 
-> Catatan pelaksanaan: keputusan 63–66 mencatat penyesuaian Milestone 1 dan
-> watermark mockup; 67–73 mencatat keputusan implementasi Milestone 2.
+> Catatan pelaksanaan: keputusan 63–66 (M1 + watermark), 67–73 (M2), dan
+> 74–79 (M3) mencatat penyesuaian saat implementasi.
 
 ---
 
@@ -415,3 +415,9 @@ Milestone 3 adalah titik layak pakai. Pembayaran otomatis bukan syarat operasi.
 | 71 | Nama dan harga addon disalin ke `item_addon` sebagai snapshot |
 | 72 | Antrean kasir dan halaman status pelanggan memakai polling 3 detik |
 | 73 | QR dicetak dari panel pemilik memakai `qrcode`; URL dihasilkan dari asal halaman + token meja |
+| 74 | Diskon memakai PIN pemilik terpisah (`KASIRIN_OWNER_PIN`, demo `246810`) dan alasan wajib |
+| 75 | Pajak & service dihitung ulang dari pengaturan outlet setiap tagihan berubah |
+| 76 | QRIS manual yang belum jelas ditandai `perlu_dicek`; kasir mengonfirmasi sebelum menutup meja |
+| 77 | Meja hanya bisa ditutup setelah tagihan lunas; tagihan berstatus `ditutup`, bukan dihapus |
+| 78 | Setelah meja ditutup, pesanan berikutnya membuka kunjungan dan tagihan baru |
+| 79 | Ringkasan harian dihitung dari pembayaran lunas hari berjalan (waktu lokal) |

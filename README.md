@@ -4,9 +4,9 @@ POS open source untuk UMKM F&B Indonesia. Pelanggan memesan lewat QR di meja,
 kasir mengelola pesanan dan tagihan, semuanya berjalan di komputer kasir sendiri
 — tanpa VPS, tanpa langganan.
 
-Lisensi: AGPL-3.0. Status: **Milestone 2** — alur pelanggan lewat QR (menu,
-keranjang, addon, kirim pesanan, halaman status) dan antrean kasir sudah bisa
-dijalankan.
+Lisensi: AGPL-3.0. Status: **Milestone 3** — alur kasir penuh: pembayaran manual,
+diskon dengan PIN pemilik, penutupan meja, dan ringkasan harian. Satu warung
+sudah bisa beroperasi penuh.
 
 Dibuat oleh [@MarchAja](https://github.com/MarchAja) · Open Source · AGPL-3.0.
 
@@ -57,6 +57,11 @@ Screenshot aplikasi Milestone 2 (bukan mockup):
 - `pelanggan-menu.png` — menu pelanggan lewat QR
 - `pelanggan-addon.png` — sheet addon native
 - `pelanggan-status.png` — halaman status dengan total tagihan
+
+Screenshot aplikasi Milestone 3:
+
+- `kasir-m3.png` — panel tagihan lengkap dengan aksi Bayar/Diskon/Tutup meja
+- `ringkasan-m3.png` — ringkasan hari ini per metode bayar dan daftar diskon
 
 Layar kasir responsif: ubah lebar jendela di browser untuk melihat ketiga tata
 letak. Foto contoh memakai Unsplash (lihat `prototype/CREDITS.md`) dan hanya
@@ -115,8 +120,16 @@ yang sudah di-build.
    **Disajikan**. Satu tagihan per kunjungan meja otomatis bertambah bila
    pelanggan memesan lagi sebelum meja ditutup.
 
-Tagihan dibuka saat kasir menerima pesanan pertama. Pembayaran dan penutupan
-meja masuk Milestone 3.
+5. Di panel **Meja**, buka tagihan meja yang dipilih: bayar tunai / QRIS manual,
+   beri diskon dengan PIN pemilik `246810` + alasan, atau tandai QRIS sebagai
+   *perlu dicek* lalu konfirmasi setelah dicek.
+6. Setelah lunas, tombol **Tutup meja** mengembalikan meja ke kondisi kosong.
+7. Halaman **Ringkasan** menampilkan omzet hari ini, rincian per metode bayar,
+   tagihan terbuka, tagihan perlu dicek, dan daftar diskon beserta alasannya.
+8. Pemilik mengatur pajak PB1, service charge, dan mode bayar di **Pengaturan**.
+
+Pembayaran QRIS otomatis (Midtrans), cadangan otomatis, dan installer Windows
+masuk Milestone 4.
 
 ## Perintah pengembang
 

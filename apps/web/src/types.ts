@@ -206,3 +206,86 @@ export interface PesananAntrean {
 export interface AntreanResponse {
   pesanan: PesananAntrean[]
 }
+
+// ---------------------------------------------------------------------------
+// Milestone 3 — tagihan, pembayaran, diskon, ringkasan, dan pengaturan outlet
+// ---------------------------------------------------------------------------
+
+export type MetodeBayar = 'tunai' | 'qris_manual'
+
+export type StatusTagihan =
+  | 'buka'
+  | 'tertunda'
+  | 'lunas'
+  | 'perlu_dicek'
+  | 'ditutup'
+
+export interface PembayaranDetail {
+  id: number
+  metode: string
+  nominal: number
+  status: string
+  dibuat_pada: string
+  final_pada: string | null
+}
+
+export interface TagihanDetail {
+  id: number
+  kunjungan_id: number
+  meja_id: number
+  meja_nomor: number
+  subtotal: number
+  diskon: number
+  alasan_diskon: string | null
+  pajak: number
+  service: number
+  total: number
+  status: StatusTagihan
+  dibuat_pada: string
+  items: ItemPesanan[]
+  pembayaran: PembayaranDetail[]
+}
+
+export interface TagihanResponse {
+  tagihan: TagihanDetail | null
+}
+
+export interface BayarRequest {
+  metode: MetodeBayar
+  nominal?: number
+  perlu_dicek?: boolean
+}
+
+export interface DiskonRequest {
+  diskon?: number
+  persen?: number
+  alasan: string
+  pin: string
+}
+
+export interface PengaturanResponse {
+  nama: string
+  alamat: string | null
+  pajak_persen: number
+  service_persen: number
+  mode_bayar: 'manual' | 'otomatis' | 'keduanya'
+}
+
+export type UpdatePengaturanRequest = Partial<
+  Pick<PengaturanResponse, 'pajak_persen' | 'service_persen' | 'mode_bayar'>
+>
+
+export interface RingkasanHarian {
+  tanggal: string
+  total_diterima: number
+  per_metode: Array<{ metode: string; jumlah: number; total: number }>
+  jumlah_transaksi: number
+  tagihan_terbuka: number
+  perlu_dicek: number
+  diskon: Array<{
+    tagihan_id: number
+    meja_nomor: number
+    nominal: number
+    alasan: string
+  }>
+}
