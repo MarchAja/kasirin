@@ -24,6 +24,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      # better-sqlite3 tidak punya biner siap pakai untuk semua versi Node di Windows.
+      # Tanpa lingkungan MSVC, node-gyp gagal walaupun Visual Studio terpasang.
+      - name: Siapkan alat C++ (node-gyp)
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Pasang dependensi
         run: npm ci
 
