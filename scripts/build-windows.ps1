@@ -147,9 +147,9 @@ pause
         Peringatan 'Pasang NSIS dari https://nsis.sourceforge.io/ lalu jalankan ulang skrip ini untuk membuat installer.'
     } else {
         Info 'Membuat installer NSIS (KasirIn-Setup.exe) ...'
-        Push-Location $RepoRoot
+        Push-Location (Join-Path $RepoRoot 'installer')
         try {
-            & $makensis installer/kasirin.nsi
+            & $makensis kasirin.nsi
             if ($LASTEXITCODE -ne 0) { Gagal 'makensis gagal membuat installer. Periksa keluaran di atas.' }
         } finally {
             Pop-Location

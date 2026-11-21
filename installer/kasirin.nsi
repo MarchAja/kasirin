@@ -4,8 +4,8 @@
 ; Jalankan dari akar repositori:
 ;   makensis installer/kasirin.nsi
 ;
-; Path relatif memakai ${__FILEDIR__} (folder tempat berkas .nsi ini berada),
-; sehingga tetap benar walau makensis dipanggil dari folder lain.
+; Jalankan makensis dari folder installer/ (dilakukan build-windows.ps1).
+; Semua path relatif di bawah dimulai dari folder installer/, mis. ..\LICENSE.
 
 ; ===================== Informasi aplikasi =====================
 !define APPNAME     "KasirIn"
@@ -15,7 +15,7 @@
 !define APPEXE      "run.cmd"
 
 Name "${APPNAME}"
-OutFile "${__FILEDIR__}\..\dist-windows\${APPNAME}-Setup.exe"
+OutFile "..\dist-windows\${APPNAME}-Setup.exe"
 InstallDir "${APPINSTDIR}"
 InstallDirRegKey HKCU "Software\${APPPUBLISHER}\${APPNAME}" "InstallDir"
 
@@ -47,13 +47,13 @@ VIAddVersionKey "LegalCopyright" "${APPPUBLISHER} - AGPL-3.0"
 !define MUI_ABORTWARNING
 ; Berkas lisensi berada di akar repo, satu level di atas folder installer/
 ; (relatif terhadap berkas .nsi ini).
-!define MUI_LICENSEFILE "${__FILEDIR__}\..\LICENSE"
+!define MUI_LICENSEFILE "..\LICENSE"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APPEXE}"
 !define MUI_FINISHPAGE_RUN_TEXT "Jalankan ${APPNAME} sekarang"
 
 ; Urutan halaman wizard instalasi.
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "${__FILEDIR__}\..\LICENSE"
+!insertmacro MUI_PAGE_LICENSE "..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -72,7 +72,7 @@ Section "Instal ${APPNAME}" SEC_UTAMA
 
     ; Salin seluruh isi staging (dibuat oleh scripts/build-windows.ps1).
     ; staging: ..\dist-windows\KasirIn
-    File /r "${__FILEDIR__}\..\dist-windows\${APPNAME}\*.*"
+    File /r "..\dist-windows\${APPNAME}\*.*"
 
     ; Ingat lokasi instalasi untuk pembaruan berikutnya (per-user).
     WriteRegStr HKCU "Software\${APPPUBLISHER}\${APPNAME}" "InstallDir" "$INSTDIR"
